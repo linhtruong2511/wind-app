@@ -18,16 +18,21 @@
 #
 #########################################################################
 
+from django.urls import path, re_path
+
 # Do not remove handler500 import. It is required to re-export
 # the custom error page handler for the GeoNode project
 # related issue: https://github.com/GeoNode/geonode-project/issues/570
-from geonode.urls import urlpatterns, handler500  # noqa
+try:
+    from geonode.urls import urlpatterns, handler500  # noqa
+except ImportError:
+    urlpatterns = []
+    handler500 = None
 
-"""
-# You can register your own urlpatterns here
+from .views import WindAppPortalView
+
 urlpatterns = [
-    url(r'^/?$',
-        homepage,
-        name='home'),
- ] + urlpatterns
-"""
+    path("wind-app/", WindAppPortalView.as_view(), name="wind_app_portal"),
+    re_path(r"^wind-app/.*$", WindAppPortalView.as_view(), name="wind_app_portal_subpath"),
+    re_path(r"^wind/app/.*$", WindAppPortalView.as_view(), name="wind_app_portal_alias"),
+] + urlpatterns
