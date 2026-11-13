@@ -1,0 +1,42 @@
+{% load i18n %}
+
+<style>
+  .gn-footer {
+    padding: 12px 0 !important;
+  }
+</style>
+
+<div class="gn-footer-placeholder"></div>
+<footer class="gn-footer">
+  <div class="container" style="max-width: 1400px; margin: 0 auto; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; padding: 0 16px; gap: 16px;">
+    <div>
+      <div style="font-weight: 700; color: #0f172a; font-size: 13px; display: flex; align-items: center; gap: 6px;">
+        <span style="color: #0284c7;">🌀</span> Wind Energy Spatial Management Platform
+      </div>
+      <div style="color: #64748b; font-size: 11px; margin-top: 3px;">
+        {% trans "Nền tảng quản lý và phân tích tài nguyên năng lượng gió trên nền tảng GeoNode & MapStore." %}
+      </div>
+    </div>
+    <div style="display: flex; gap: 20px; font-size: 12px; font-weight: 500;">
+      <a href="/about/" style="color: #0284c7; text-decoration: none;">{% trans "Giới thiệu" %}</a>
+      <a href="/developer/" style="color: #0284c7; text-decoration: none;">{% trans "Tài liệu API" %}</a>
+      <a href="/help/" style="color: #0284c7; text-decoration: none;">{% trans "Trợ giúp" %}</a>
+      <a href="https://geonode.org/" target="_blank" rel="noopener noreferrer" style="color: #64748b; text-decoration: none;">GeoNode.org</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+    (function () {
+        const footer = document.querySelector('.gn-footer');
+        const footerPlaceholder = document.querySelector('.gn-footer-placeholder');
+        function resize() {
+            if (footerPlaceholder && footer) {
+                footerPlaceholder.style.height = footer.clientHeight + 'px';
+            }
+        }
+        window.addEventListener('resize', resize);
+        window.addEventListener('DOMContentLoaded', resize);
+        resize();
+    })();
+</script>

@@ -1,0 +1,105 @@
+{% load static %}
+{% load i18n %}
+{% load get_menu_json %}
+{% get_menu_json 'TOPBAR_MENU' as TOPBAR_MENU %}
+{% get_menu_json 'TOPBAR_MENU_LEFT' as TOPBAR_MENU_LEFT %}
+{% get_menu_json 'TOPBAR_MENU_RIGHT' as TOPBAR_MENU_RIGHT %}
+{% block extra_style %}
+{% endblock %}
+
+<nav id="gn-brand-navbar" class="gn-brand-navbar ms-main-colors _padding-md ms-flex-box _flex">
+    <div class="ms-flex-fill ms-flex-box _flex _flex-gap-sm _flex-center-v" style="max-width: 1400px; margin: 0 auto; width: 100%;">
+        {% block logo %}
+            <a href="/" class="gn-wind-brand-logo" style="display: flex; align-items: center; gap: 8px; text-decoration: none; padding-right: 12px;">
+                <img src="{% static 'wind_management/images/wind_logo.svg' %}" alt="Wind Logo" width="30" height="30">
+                <span style="font-weight: 800; font-size: 16px; letter-spacing: -0.3px; color: #0284c7;">WIND GEONODE</span>
+            </a>
+        {% endblock %}
+        {% block left_menu %}
+        <div class="gn-brand-navbar-left-menu-container ms-flex-fill ms-flex-box _flex _flex-gap-sm _flex-center-v">
+            <ul class="ms-flex-fill ms-flex-box _flex _flex-gap-sm _flex-center-v gn-brand-navbar-menu">
+                {% block default_left_menu_items %}
+                    {% include './brand_navbar_default_left_menu_items.html' %}
+                {% endblock %}
+                <li class="dropdown gn-wind-dropdown">
+                    <a href="#" class="dropdown-toggle nav-link btn btn-default" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false" style="color: #0284c7; font-weight: 600;">
+                        <i class="fa fa-flag" style="margin-right: 5px;"></i>{% trans "Năng Lượng Gió" %} <span class="caret"></span>
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li class="dropdown-header">{% trans "Ứng dụng trắc gió" %}</li>
+                        <li><a href="/wind-app/#/stations"><i class="fa fa-map-marker text-success" style="width: 20px;"></i> {% trans "Bản đồ trạm đo" %}</a></li>
+                        <li><a href="/wind-app/#/grid"><i class="fa fa-globe text-primary" style="width: 20px;"></i> {% trans "Bản đồ lưới gió" %}</a></li>
+                        <li><a href="/wind-app/#/farms"><i class="fa fa-bolt text-warning" style="width: 20px;"></i> {% trans "Trang trại gió" %}</a></li>
+                        <li><a href="/wind-app/#/statistics"><i class="fa fa-bar-chart text-info" style="width: 20px;"></i> {% trans "Thống kê & phân tích" %}</a></li>
+                        <li role="separator" class="divider"></li>
+                        <li><a href="/wind-app/"><i class="fa fa-map" style="width: 20px;"></i> {% trans "Bản đồ GIS tổng quan" %}</a></li>
+                        {% if request.user.is_staff or request.user.is_superuser %}
+                            <li role="separator" class="divider"></li>
+                            <li class="dropdown-header" style="color: #dc2626;">{% trans "Quản trị dữ liệu" %}</li>
+                            <li><a href="/admin/wind/cds/"><i class="fa fa-cloud-download" style="width: 20px;"></i> {% trans "Tải dữ liệu CDS ERA5" %}</a></li>
+                            <li><a href="/admin/wind/upload/"><i class="fa fa-upload" style="width: 20px;"></i> {% trans "Nạp dữ liệu khảo sát" %}</a></li>
+                            <li><a href="/admin/wind/"><i class="fa fa-dashboard" style="width: 20px;"></i> {% trans "Bảng điều khiển quản trị" %}</a></li>
+                        {% endif %}
+                    </ul>
+                </li>
+                {% for menu_item in TOPBAR_MENU %}
+                    {% include './menu_item.html' with menu_item=menu_item %}
+                {% endfor %}
+                {% for menu_item in TOPBAR_MENU_LEFT %}
+                    {% include './menu_item.html' with menu_item=menu_item %}
+                {% endfor %}
+            </ul>
+        </div>
+        {% endblock %}
+        {% block right_menu %}
+            {% block search_bar %}
+                {% include './search_bar.html' with search_bar_id='gn-search-bar' %}
+            {% endblock %}
+            <ul class="gn-brand-navbar-right-menu-container ms-flex-box _flex _flex-gap-sm _flex-center-v">
+                {% block language_selector %}
+                    {% include './language_selector.html' with align_right=True %}
+                {% endblock %}
+                {% for menu_item in TOPBAR_MENU_RIGHT %}
+                    {% include './menu_item.html' with menu_item=menu_item align_right=True %}
+                {% endfor %}
+                {% block default_right_menu_items %}
+                    {% include './brand_navbar_default_right_menu_items.html' %}
+                {% endblock %}
+            </ul>
+        {% endblock %}
+    </div>
+</nav>
+<div id="gn-brand-navbar-bottom">
+    {% block bottom_menu %}
+        <div class="gn-brand-navbar-menu dropdown">
+            <button
+                class="btn dropdown-toggle btn-default"
+                type="button"
+                id="gn-brand-navbar-menu-btn"
+                data-toggle="dropdown"
+                aria-haspopup="true"
+                aria-expanded="false"
+            >
+                <i class="fa fa-bars"></i>
+            </button>
+            <ul class="dropdown-menu" aria-labelledby="gn-brand-navbar-menu-btn">
+                {% block default_left_menu_items_compact %}
+                    {% include './brand_navbar_default_left_menu_items.html' %}
+                {% endblock %}
+                <li class="dropdown-header">{% trans "Năng lượng gió" %}</li>
+                <li><a href="/wind-app/#/stations"><i class="fa fa-map-marker text-success" style="width: 20px;"></i> {% trans "Bản đồ trạm đo" %}</a></li>
+                <li><a href="/wind-app/#/grid"><i class="fa fa-globe text-primary" style="width: 20px;"></i> {% trans "Bản đồ lưới gió" %}</a></li>
+                <li><a href="/wind-app/#/farms"><i class="fa fa-bolt text-warning" style="width: 20px;"></i> {% trans "Trang trại gió" %}</a></li>
+                <li><a href="/wind-app/#/statistics"><i class="fa fa-bar-chart text-info" style="width: 20px;"></i> {% trans "Thống kê & phân tích" %}</a></li>
+                <li><a href="/wind-app/"><i class="fa fa-map" style="width: 20px;"></i> {% trans "Bản đồ GIS tổng quan" %}</a></li>
+                {% if request.user.is_staff or request.user.is_superuser %}
+                    <li role="separator" class="divider"></li>
+                    <li class="dropdown-header" style="color: #dc2626;">{% trans "Quản trị dữ liệu" %}</li>
+                    <li><a href="/admin/wind/cds/"><i class="fa fa-cloud-download" style="width: 20px;"></i> {% trans "Tải dữ liệu CDS ERA5" %}</a></li>
+                    <li><a href="/admin/wind/upload/"><i class="fa fa-upload" style="width: 20px;"></i> {% trans "Nạp dữ liệu khảo sát" %}</a></li>
+                    <li><a href="/admin/wind/"><i class="fa fa-dashboard" style="width: 20px;"></i> {% trans "Bảng điều khiển quản trị" %}</a></li>
+                {% endif %}
+            </ul>
+        </div>
+    {% endblock %}
+</div>

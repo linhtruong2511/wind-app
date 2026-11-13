@@ -1,0 +1,145 @@
+{% load i18n %}
+{% block extra_style %}
+{% endblock %}
+
+<div id="gn-hero" class="gn-hero gn-wind-hero">
+  <!-- Pill Badge -->
+  <div class="gn-wind-badge">
+    <i class="fa fa-flag" style="margin-right: 6px;"></i> {% trans "Cổng Dữ Liệu Địa Không Gian Năng Lượng Gió" %}
+  </div>
+
+  <!-- Main Headline -->
+  <h1>{% trans "Hệ Thống Quản Lý & Phân Tích Dữ Liệu Gió" %}</h1>
+
+  <!-- Subtitle -->
+  <p class="gn-wind-subtitle">
+    {% trans "Tích hợp bản đồ tiềm năng gió tốc độ cao, trạm quan trắc tự động và dữ liệu tái phân tích khí hậu ECMWF ERA5." %}
+  </p>
+
+  <!-- Floating Search Bar -->
+  <div class="gn-wind-search-container">
+    <form class="gn-wind-search-form" action="/catalogue/" method="GET">
+      <i class="fa fa-search" style="font-size: 14px; color: #0284c7; margin-right: 6px;"></i>
+      <input 
+        type="text" 
+        name="f" 
+        class="gn-wind-search-input" 
+        placeholder="{% trans 'Tìm kiếm lớp bản đồ tốc độ gió, trạm đo, tài liệu kỹ thuật...' %}" 
+        autocomplete="off"
+      >
+      <button type="submit" class="gn-wind-search-btn">
+        {% trans "Tìm Kiếm" %}
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- Floating KPI Cards -->
+<div class="gn-wind-kpi-container">
+  <div class="gn-wind-kpi-card">
+    <div class="gn-wind-kpi-val" style="color: #0284c7;">54+</div>
+    <div class="gn-wind-kpi-label">{% trans "Trạm đo gió" %}</div>
+  </div>
+  <div class="gn-wind-kpi-card">
+    <div class="gn-wind-kpi-val" style="color: #0d9488;">18 Lớp</div>
+    <div class="gn-wind-kpi-label">{% trans "Bản đồ chuyên đề" %}</div>
+  </div>
+  <div class="gn-wind-kpi-card">
+    <div class="gn-wind-kpi-val" style="color: #d97706;">ERA5 CDS</div>
+    <div class="gn-wind-kpi-label">{% trans "Dữ liệu khí hậu" %}</div>
+  </div>
+  <div class="gn-wind-kpi-card">
+    <div class="gn-wind-kpi-val" style="color: #6366f1;">OGC Ready</div>
+    <div class="gn-wind-kpi-label">{% trans "WMS / WFS / REST" %}</div>
+  </div>
+</div>
+
+<!-- Wind Feature Cards Section -->
+<div class="gn-wind-features-container">
+  <div class="gn-wind-features-header">
+    <div class="gn-wind-features-badge">
+      <i class="fa fa-flag" style="margin-right: 4px;"></i>{% trans "Ứng Dụng Chuyên Đề Gió" %}
+    </div>
+    <h2 class="gn-wind-features-title">
+      {% trans "Hệ Thống Bản Đồ & Phân Tích Dữ Liệu Năng Lượng Gió" %}
+    </h2>
+    <p class="gn-wind-features-subtitle">
+      {% trans "Truy cập nhanh các ứng dụng GIS trực quan hóa mạng lưới quan trắc trắc gió, trường gió không gian và công cụ tính toán tiềm năng gió." %}
+    </p>
+  </div>
+
+  <div class="gn-wind-features-grid">
+    <!-- Card 1: Bản Đồ Trạm Quan Trắc -->
+    <div class="gn-wind-feature-card card-stations">
+      <div class="gn-wind-feature-card-header">
+        <div class="gn-wind-feature-icon-wrapper">
+          <i class="fa fa-map-marker"></i>
+        </div>
+        <span class="gn-wind-feature-tag">{% trans "54+ Trạm" %}</span>
+      </div>
+      <h3 class="gn-wind-feature-card-title">{% trans "Bản Đồ Trạm Đo" %}</h3>
+      <p class="gn-wind-feature-card-desc">
+        {% trans "Tra cứu mạng lưới các trạm đo gió bề mặt, tháp đo cao khí tượng, xem thông số quan trắc và chuỗi số liệu đo đạc." %}
+      </p>
+      <a href="/wind-app/#/stations" class="gn-wind-feature-card-btn">
+        <span>{% trans "Xem Bản Đồ Trạm" %}</span>
+        <i class="fa fa-arrow-right"></i>
+      </a>
+    </div>
+
+    <!-- Card 2: Bản Đồ Lưới Gió -->
+    <div class="gn-wind-feature-card card-grid">
+      <div class="gn-wind-feature-card-header">
+        <div class="gn-wind-feature-icon-wrapper">
+          <i class="fa fa-globe"></i>
+        </div>
+        <span class="gn-wind-feature-tag">{% trans "ERA5 Raster" %}</span>
+      </div>
+      <h3 class="gn-wind-feature-card-title">{% trans "Bản Đồ Lưới Gió" %}</h3>
+      <p class="gn-wind-feature-card-desc">
+        {% trans "Trực quan hóa trường gió không gian, lưới dữ liệu tái phân tích ERA5 Copernicus theo từng mốc thời gian và độ cao." %}
+      </p>
+      <a href="/wind-app/#/grid" class="gn-wind-feature-card-btn">
+        <span>{% trans "Xem Trường Lưới Gió" %}</span>
+        <i class="fa fa-arrow-right"></i>
+      </a>
+    </div>
+
+    <!-- Card 3: Trang Trại Gió -->
+    <div class="gn-wind-feature-card card-farms">
+      <div class="gn-wind-feature-card-header">
+        <div class="gn-wind-feature-icon-wrapper">
+          <i class="fa fa-bolt"></i>
+        </div>
+        <span class="gn-wind-feature-tag">{% trans "Quy Hoạch MW" %}</span>
+      </div>
+      <h3 class="gn-wind-feature-card-title">{% trans "Trang Trại Gió" %}</h3>
+      <p class="gn-wind-feature-card-desc">
+        {% trans "Vị trí tọa độ tuabin gió ngoài khơi, thông số kỹ thuật công suất MW, độ sâu đáy biển và đánh giá tiềm năng khai thác." %}
+      </p>
+      <a href="/wind-app/#/farms" class="gn-wind-feature-card-btn">
+        <span>{% trans "Xem Trang Trại Gió" %}</span>
+        <i class="fa fa-arrow-right"></i>
+      </a>
+    </div>
+
+    <!-- Card 4: Thống Kê & Phân Tích -->
+    <div class="gn-wind-feature-card card-statistics">
+      <div class="gn-wind-feature-card-header">
+        <div class="gn-wind-feature-icon-wrapper">
+          <i class="fa fa-bar-chart"></i>
+        </div>
+        <span class="gn-wind-feature-tag">{% trans "Biểu Đồ & AEP" %}</span>
+      </div>
+      <h3 class="gn-wind-feature-card-title">{% trans "Thống Kê & Phân Tích" %}</h3>
+      <p class="gn-wind-feature-card-desc">
+        {% trans "Phân tích hoa gió (Wind Rose), tần suất phân bố Weibull, tính toán sản lượng điện năng hàng năm (AEP) và hệ số công suất." %}
+      </p>
+      <a href="/wind-app/#/statistics" class="gn-wind-feature-card-btn">
+        <span>{% trans "Xem Biểu Đồ Thống Kê" %}</span>
+        <i class="fa fa-arrow-right"></i>
+      </a>
+    </div>
+  </div>
+</div>
+
