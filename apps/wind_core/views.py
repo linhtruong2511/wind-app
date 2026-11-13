@@ -68,6 +68,7 @@ class DatasetViewSet(viewsets.ReadOnlyModelViewSet):
         granules = (
             RasterGranuleIndex.objects.filter(dataset=dataset)
             .annotate(year=TruncYear("granule_time"))
+            .order_by("year")
             .values_list("year", flat=True)
             .distinct()
         )
@@ -82,6 +83,7 @@ class DatasetViewSet(viewsets.ReadOnlyModelViewSet):
         granules = (
             RasterGranuleIndex.objects.filter(dataset=dataset)
             .annotate(month=TruncMonth("granule_time"))
+            .order_by("month")
             .values_list("month", flat=True)
             .distinct()
         )
@@ -96,6 +98,7 @@ class DatasetViewSet(viewsets.ReadOnlyModelViewSet):
         granules = (
             RasterGranuleIndex.objects.filter(dataset=dataset)
             .annotate(day=TruncDay("granule_time"))
+            .order_by("day")
             .values_list("day", flat=True)
             .distinct()
         )
