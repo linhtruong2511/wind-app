@@ -1,0 +1,14 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+<head>
+    {% block extra_style %}{% endblock %}
+</head>
+<body class="{% block page_class %}{% endblock %}">
+    {% block container %}{% endblock %}
+    {% block ms_scripts %}{% endblock %}
+    {% block scripts %}
+        <script src="{% static 'base.js' %}"></script>
+    {% endblock %}
+</body>
+</html>

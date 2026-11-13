@@ -1,0 +1,48 @@
+{% extends "page.html" %}
+{% load i18n %}
+{% load static %}
+
+{% block page_class %}gn-catalogue gn-wind-page{% endblock %}
+
+{% block extra_style %}
+    {% block extra_head %}
+        {% if vite_dev_mode %}
+            <script type="module" src="http://localhost:5173/@vite/client"></script>
+        {% else %}
+            <link rel="stylesheet" href="{% static 'wind_management/dist/wind_app.css' %}">
+        {% endif %}
+    {% endblock %}
+{% endblock %}
+
+{% block container %}
+    {% block content %}
+    <div 
+        id="wind-app-root"
+        data-user="{{ request.user.username|default:'' }}"
+        data-is-staff="{{ request.user.is_staff|yesno:'true,false' }}"
+        data-is-authenticated="{{ request.user.is_authenticated|yesno:'true,false' }}"
+        data-api-base="/wind/api/v1"
+    >
+        <div class="text-center" style="padding: 60px 20px;">
+            <i class="fa fa-spinner fa-spin fa-3x" style="color: #0284c7;"></i>
+            <p style="margin-top: 15px; color: #64748b; font-weight: 500;">
+                {% trans "Đang tải hệ thống ứng dụng trắc gió..." %}
+            </p>
+        </div>
+    </div>
+    {% endblock %}
+{% endblock %}
+
+{% block ms_scripts %}
+{% endblock %}
+
+{% block scripts %}
+    {{ block.super }}
+    {% block extra_script %}
+        {% if vite_dev_mode %}
+            <script type="module" src="http://localhost:5173/src/main.jsx"></script>
+        {% else %}
+            <script type="module" src="{% static 'wind_management/dist/wind_app.js' %}"></script>
+        {% endif %}
+    {% endblock %}
+{% endblock %}
