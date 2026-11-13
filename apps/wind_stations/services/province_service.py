@@ -1,3 +1,4 @@
+import json
 import logging
 from django.apps import apps
 from django.contrib.gis.geos import GEOSGeometry
@@ -71,7 +72,7 @@ def get_provinces_wfs_data(request=None):
                         features.append({
                             "type": "Feature",
                             "id": f"viet_nam_tinh_thanh_63.{p.id}",
-                            "geometry": p.geom.geojson,
+                            "geometry": json.loads(p.geom.geojson) if isinstance(p.geom.geojson, str) else p.geom.geojson,
                             "properties": {
                                 "id": p.id,
                                 "name": getattr(p, "name", ""),

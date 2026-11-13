@@ -243,6 +243,12 @@ class StatisticsViewSet(viewsets.ViewSet):
         station_ids_raw = request.query_params.get("station_ids", "")
         station_ids = [int(s) for s in station_ids_raw.split(",") if s.strip().isdigit()]
         metric = request.query_params.get("metric", "wind_speed")
+        allowed_metrics = {
+            "wind_speed", "temp_2m", "temp_min", "temp_max",
+            "humidity", "pressure", "rain_06h", "rain_24h", "wind_dir"
+        }
+        if metric not in allowed_metrics:
+            metric = "wind_speed"
         interval = request.query_params.get("interval", "month")
         start_date = request.query_params.get("start_date")
         end_date = request.query_params.get("end_date")
