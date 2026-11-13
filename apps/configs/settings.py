@@ -204,5 +204,10 @@ if os.name == "nt":
     if os.path.exists(PROJ_LIB):
         os.environ["PROJ_LIB"] = PROJ_LIB
 
-    GDAL_LIBRARY_PATH = os.path.join(PG_BIN, "libgdal-35.dll")
-    GEOS_LIBRARY_PATH = os.path.join(PG_BIN, "libgeos_c.dll")
+    gdal_candidate = os.path.join(PG_BIN, "libgdal-35.dll")
+    if os.path.exists(gdal_candidate):
+        GDAL_LIBRARY_PATH = gdal_candidate
+
+    geos_candidate = os.path.join(PG_BIN, "libgeos_c.dll")
+    if os.path.exists(geos_candidate):
+        GEOS_LIBRARY_PATH = geos_candidate
