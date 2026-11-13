@@ -13,4 +13,6 @@ urlpatterns = [
     re_path(r"^wind/app/.*$", WindAppPortalView.as_view(), name="wind_app_portal_alias"),
     path("api/", include("wind_core.urls")),
     path("api/stations", include("wind_stations.urls")),
+    path("api/", include("wind_raster.urls")),
+    path("wind/api/v1/", include("wind_raster.urls")),
 ]
