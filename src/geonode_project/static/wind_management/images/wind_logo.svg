@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" fill="none">
+  <circle cx="24" cy="24" r="22" fill="url(#wind-grad)" />
+  <path d="M24 8v16M24 24l13.86 8M24 24l-13.86 8" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="24" cy="24" r="3.5" fill="#ffffff" />
+  <path d="M12 18c3-2 7-2 10 0M10 28c4 3 10 2 14-1M28 14c3-1 6 0 8 2" stroke="#38bdf8" stroke-width="2" stroke-linecap="round" stroke-dasharray="2 3"/>
+  <defs>
+    <linearGradient id="wind-grad" x1="4" y1="4" x2="44" y2="44" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0284c7"/>
+      <stop offset="1" stop-color="#0d9488"/>
+    </linearGradient>
+  </defs>
+</svg>
