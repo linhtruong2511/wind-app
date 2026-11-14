@@ -1,3 +1,4 @@
+import sys
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
@@ -19,7 +20,7 @@ class Profile(AbstractUser):
 
     class Meta:
         db_table = "people_profile"
-        managed = False
+        managed = "test" in sys.argv or "pytest" in sys.modules
 
     def __str__(self):
         return self.username

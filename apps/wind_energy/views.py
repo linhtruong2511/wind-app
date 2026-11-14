@@ -6,7 +6,7 @@ from rest_framework.renderers import BrowsableAPIRenderer, JSONRenderer
 from rest_framework.response import Response
 from rest_framework_gis.filters import InBBoxFilter
 
-from wind_core.utils import StandardResultsSetPagination
+from wind_core.utils import IsAdminUserOrReadOnly, StandardResultsSetPagination
 from .models import (
     AnalysisJob,
     AnalysisResult,
@@ -51,7 +51,7 @@ class WindFarmViewSet(viewsets.ModelViewSet):
 
     queryset = WindFarm.objects.all().order_by("id")
     serializer_class = WindFarmSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    permission_classes = [IsAdminUserOrReadOnly]
     pagination_class = WindEnergyPagination
     renderer_classes = [JSONRenderer, BrowsableAPIRenderer, GeoJSONRenderer]
     filter_backends = [
@@ -126,7 +126,7 @@ class WindTurbineViewSet(viewsets.ModelViewSet):
 
     queryset = WindTurbine.objects.select_related("farm").all().order_by("id")
     serializer_class = WindTurbineSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    permission_classes = [IsAdminUserOrReadOnly]
     pagination_class = WindEnergyPagination
     renderer_classes = [JSONRenderer, BrowsableAPIRenderer, GeoJSONRenderer]
     bbox_filter_field = "geom"

@@ -3,7 +3,7 @@ from django.db.models import Count, Max, Min
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from django_filters import rest_framework as filters
-from rest_framework import permissions, viewsets
+from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework_gis.filters import InBBoxFilter
@@ -27,6 +27,50 @@ class RasterGranuleIndexViewSet(viewsets.ReadOnlyModelViewSet):
     bbox_filter_field = "footprint"
     filter_backends = [filters.DjangoFilterBackend, InBBoxFilter]
     filterset_fields = ["dataset", "variable_code", "granule_time"]
+
+    @action(detail=False, methods=["post"], url_path="upload", permission_classes=[permissions.IsAdminUser])
+    def upload_raster(self, request):
+        uploaded_file = request.FILES.get("file")
+        dataset_id = request.data.get("dataset_id")
+        if not uploaded_file:
+            return Response({"error": "Vui lòng chọn tệp .nc hoặc .zip."}, status=status.HTTP_400_BAD_REQUEST)
+
+        from wind_core.models import Dataset, IngestionLog
+
+        dataset = Dataset.objects.filter(id=dataset_id).first()
+        if not dataset:
+            return Response({"error": "Bộ dữ liệu không tồn tại."}, status=status.HTTP_400_BAD_REQUEST)
+
+        import os
+        import tempfile
+        from wind_raster.services.raster_ingest import ingest_netcdf
+
+        suffix = os.path.splitext(uploaded_file.name)[1]
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            for chunk in uploaded_file.chunks():
+                tmp.write(chunk)
+            tmp_path = tmp.name
+
+        log = IngestionLog.objects.create(dataset=dataset, source_file=uploaded_file.name, status="RUNNING")
+        try:
+            result = ingest_netcdf(tmp_path, dataset)
+            log.status = "SUCCESS"
+            log.records_processed = result.granules
+            log.save()
+            return Response({
+                "message": f"Nạp thành công {result.granules} granule(s).",
+                "granules": result.granules,
+                "variables": result.variables,
+            })
+        except Exception as e:
+            log.status = "FAILED"
+            log.error_message = str(e)
+            log.save()
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        finally:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+
 
     @action(detail=False, methods=["get"])
     def point_metadata(self, request):

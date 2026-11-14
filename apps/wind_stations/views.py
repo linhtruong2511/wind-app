@@ -11,7 +11,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_gis.filters import InBBoxFilter
 
-from wind_core.utils import StandardResultsSetPagination
+from wind_core.utils import IsAdminUserOrReadOnly, StandardResultsSetPagination
 from .models import Observation, Station
 from .serializers import (
     ObservationSerializer,
@@ -25,13 +25,13 @@ from .services.station_service import (
 )
 
 
-class StationViewSet(viewsets.ReadOnlyModelViewSet):
+class StationViewSet(viewsets.ModelViewSet):
     """
     API ViewSet cho trạm quan trắc khí tượng gió.
     """
-    queryset = Station.objects.filter(is_active=True).order_by("id")
+    queryset = Station.objects.all().order_by("id")
     serializer_class = StationSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    permission_classes = [IsAdminUserOrReadOnly]
     pagination_class = StandardResultsSetPagination
     bbox_filter_field = "geom"
     filter_backends = [filters.DjangoFilterBackend, InBBoxFilter]
@@ -141,6 +141,66 @@ class ObservationViewSet(viewsets.ReadOnlyModelViewSet):
     pagination_class = StandardResultsSetPagination
     filter_backends = [filters.DjangoFilterBackend]
     filterset_class = ObservationFilter
+
+    @action(detail=False, methods=["post"], url_path="import-file", permission_classes=[permissions.IsAdminUser])
+    def import_file(self, request):
+        uploaded_file = request.FILES.get("file")
+        dry_run = str(request.data.get("dry_run", "false")).lower() in ("true", "1")
+        if not uploaded_file:
+            return Response({"error": "Vui lòng chọn tệp CSV hoặc Excel."}, status=status.HTTP_400_BAD_REQUEST)
+
+        import pandas as pd
+
+        try:
+            if uploaded_file.name.endswith(".csv"):
+                df = pd.read_csv(uploaded_file)
+            else:
+                df = pd.read_excel(uploaded_file)
+        except Exception as e:
+            return Response({"error": f"Không thể đọc tệp: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+
+        required_cols = ["station_code", "obs_time"]
+        for col in required_cols:
+            if col not in df.columns:
+                return Response({"error": f"Thiếu cột bắt buộc: {col}"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if dry_run:
+            preview = df.head(10).to_dict(orient="records")
+            return Response({"valid": True, "total_rows": len(df), "preview": preview})
+
+        from wind_stations.models import Station, Observation
+
+        station_map = {s.station_code: s for s in Station.objects.all()}
+        created_count = 0
+        obs_to_create = []
+
+        for _, row in df.iterrows():
+            st = station_map.get(str(row["station_code"]).strip())
+            if not st:
+                continue
+            obs_to_create.append(
+                Observation(
+                    station=st,
+                    obs_time=pd.to_datetime(row["obs_time"]).to_pydatetime(),
+                    wind_speed=row.get("wind_speed") if pd.notnull(row.get("wind_speed")) else None,
+                    wind_dir=row.get("wind_dir") if pd.notnull(row.get("wind_dir")) else None,
+                    temp_2m=row.get("temp_2m") if pd.notnull(row.get("temp_2m")) else None,
+                    humidity=row.get("humidity") if pd.notnull(row.get("humidity")) else None,
+                    pressure=row.get("pressure") if pd.notnull(row.get("pressure")) else None,
+                    rain_24h=row.get("rain_24h") if pd.notnull(row.get("rain_24h")) else None,
+                )
+            )
+            if len(obs_to_create) >= 2000:
+                Observation.objects.bulk_create(obs_to_create, ignore_conflicts=True)
+                created_count += len(obs_to_create)
+                obs_to_create = []
+
+        if obs_to_create:
+            Observation.objects.bulk_create(obs_to_create, ignore_conflicts=True)
+            created_count += len(obs_to_create)
+
+        return Response({"message": f"Đã nạp {created_count} bản ghi quan trắc thành công."})
+
 
 
 class StatisticsViewSet(viewsets.ViewSet):

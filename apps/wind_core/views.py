@@ -45,6 +45,30 @@ class DatasetViewSet(viewsets.ReadOnlyModelViewSet):
     filter_backends = [filters.DjangoFilterBackend]
     filterset_fields = ["category"]
 
+    @action(detail=False, methods=["get"], url_path="dashboard-stats", permission_classes=[permissions.IsAdminUser])
+    def dashboard_stats(self, request):
+        from wind_stations.models import Station, Observation
+        from wind_raster.models import RasterGranuleIndex
+        from wind_energy.models import WindFarm, WindTurbine
+        from wind_cds.models import CDSDownloadJob
+        from wind_core.models import IngestionLog
+
+        data = {
+            "total_stations": Station.objects.count(),
+            "active_stations": Station.objects.filter(is_active=True).count(),
+            "total_observations": Observation.objects.count(),
+            "total_granules": RasterGranuleIndex.objects.count(),
+            "total_farms": WindFarm.objects.count(),
+            "total_turbines": WindTurbine.objects.count(),
+            "active_cds_jobs": CDSDownloadJob.objects.filter(status="RUNNING").count(),
+            "recent_logs": list(
+                IngestionLog.objects.order_by("-started_at")[:8].values(
+                    "id", "dataset__name", "source_file", "status", "records_processed", "error_message", "started_at"
+                )
+            ),
+        }
+        return Response(data)
+
     @action(detail=True, methods=["get"])
     def time_steps(self, request, pk=None):
         dataset = self.get_object()
