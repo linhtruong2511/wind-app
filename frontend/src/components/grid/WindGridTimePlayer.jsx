@@ -53,7 +53,7 @@ const WindGridTimePlayer = ({
         <div
             style={{
                 position: 'absolute',
-                bottom: '92px',
+                bottom: '82px',
                 left: '50%',
                 transform: 'translateX(-50%)',
                 zIndex: 1000,

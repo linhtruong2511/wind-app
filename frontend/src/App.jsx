@@ -26,45 +26,10 @@ RouteAdapter.propTypes = {
     Component: PropTypes.elementType.isRequired
 };
 
-const NavigationBar = () => {
-    return (
-        <div className="wind-subnav">
-            <ul className="nav nav-tabs">
-                <li>
-                    <NavLink to="/" end className={({ isActive }) => (isActive ? 'active' : '')}>
-                        <i className="fa fa-dashboard" style={{ marginRight: '6px' }} /> Tổng quan
-                    </NavLink>
-                </li>
-                <li>
-                    <NavLink to="/stations" className={({ isActive }) => (isActive ? 'active' : '')}>
-                        <i className="fa fa-map-marker text-success" style={{ marginRight: '6px' }} /> Trạm quan trắc
-                    </NavLink>
-                </li>
-                <li>
-                    <NavLink to="/grid" className={({ isActive }) => (isActive ? 'active' : '')}>
-                        <i className="fa fa-globe text-primary" style={{ marginRight: '6px' }} /> Bản đồ lưới gió
-                    </NavLink>
-                </li>
-                <li>
-                    <NavLink to="/farms" className={({ isActive }) => (isActive ? 'active' : '')}>
-                        <i className="fa fa-bolt text-warning" style={{ marginRight: '6px' }} /> Trang trại gió
-                    </NavLink>
-                </li>
-                <li>
-                    <NavLink to="/statistics" className={({ isActive }) => (isActive ? 'active' : '')}>
-                        <i className="fa fa-bar-chart text-info" style={{ marginRight: '6px' }} /> Thống kê & Phân tích
-                    </NavLink>
-                </li>
-            </ul>
-        </div>
-    );
-};
-
 const App = ({ config }) => {
     return (
         <HashRouter>
             <div className="wind-app-container">
-                <NavigationBar />
                 <div className="wind-content-area" style={{ padding: '0 15px 30px 15px' }}>
                     <Routes>
                         <Route path="/" element={<RouteAdapter Component={WindDashboardRoute} />} />
