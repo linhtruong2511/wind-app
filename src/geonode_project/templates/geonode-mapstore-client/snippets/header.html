@@ -1,0 +1,95 @@
+{% load static %}
+<header class="gn-main-header">
+    {% include './brand_navbar.html' %}
+</header>
+<div class="gn-main-header-placeholder"></div>
+{% if show_hero %}
+    {% include './hero.html' %}
+{% endif %}
+
+<script>
+    (function () {
+        const mainHeader = document.querySelector('.gn-main-header');
+        const mainHeaderPlaceholder = document.querySelector('.gn-main-header-placeholder');
+        function resize() {
+            if (mainHeaderPlaceholder && mainHeader) {
+                mainHeaderPlaceholder.style.height = mainHeader.clientHeight + 'px';
+            }
+        }
+        window.addEventListener('resize', resize);
+        window.addEventListener('DOMContentLoaded', resize);
+        resize();
+
+        function updateActiveMenuItems() {
+            const menuDropdowns = document.querySelectorAll('.gn-main-header .dropdown, #gn-brand-navbar-bottom .dropdown');
+            const pathname = window.location.pathname;
+            const currentHash = (window.location.hash || '').split('?')[0] || '';
+
+            for (var i = 0; i < menuDropdowns.length; i++) {
+                const menuDropdown = menuDropdowns[i];
+                const menuItems = menuDropdown.querySelectorAll('.dropdown-menu > li a');
+                const toggle = menuDropdown.querySelector('.dropdown-toggle');
+                let hasActiveChild = false;
+
+                for (var j = 0; j < menuItems.length; j++) {
+                    const menuItem = menuItems[j];
+                    const rawHref = menuItem.getAttribute('href') || '';
+                    const hrefParts = rawHref.split('#');
+                    const linkPath = hrefParts[0] || '';
+                    const linkHash = hrefParts[1] ? ('#' + hrefParts[1]) : '';
+
+                    menuItem.parentNode.classList.remove('active');
+
+                    // Match logic
+                    if (linkPath === pathname) {
+                        let isMatch = false;
+                        if (linkHash) {
+                            if (currentHash === linkHash || currentHash.startsWith(linkHash + '/')) {
+                                isMatch = true;
+                            }
+                        } else {
+                            if (!currentHash || currentHash === '#/' || currentHash === '#') {
+                                isMatch = true;
+                            }
+                        }
+
+                        if (isMatch) {
+                            menuItem.parentNode.classList.add('active');
+                            hasActiveChild = true;
+                        }
+                    }
+                }
+
+                if (hasActiveChild) {
+                    if (toggle) toggle.classList.add('active');
+                } else if (![...menuDropdown.classList].includes('gn-brand-navbar-menu')) {
+                    if (toggle) {
+                        const toggleHref = toggle.getAttribute('href');
+                        if (toggleHref && toggleHref === pathname) {
+                            toggle.classList.add('active');
+                        } else if (pathname.startsWith('/wind-app') && menuDropdown.classList.contains('gn-wind-dropdown')) {
+                            toggle.classList.add('active');
+                        } else {
+                            toggle.classList.remove('active');
+                        }
+                    }
+                }
+            }
+
+            const menuLinks = document.querySelectorAll('.gn-brand-navbar-menu > li a:not(.dropdown-toggle)');
+            for (var i = 0; i < menuLinks.length; i++) {
+                const menuLink = menuLinks[i];
+                const rawHref = menuLink.getAttribute('href') || '';
+                const hrefPath = rawHref.split('#')[0];
+                menuLink.classList.remove('active');
+                if (hrefPath === pathname) {
+                    menuLink.classList.add('active');
+                }
+            }
+        }
+
+        updateActiveMenuItems();
+
+        window.addEventListener("hashchange", updateActiveMenuItems);
+    })();
+</script>

@@ -253,12 +253,39 @@ body.msgapi {
   color: #334155 !important;
   display: flex !important;
   align-items: center !important;
+  text-decoration: none !important;
   transition: background 0.15s, color 0.15s !important;
 }
 
-.gn-wind-dropdown .dropdown-menu > li > a:hover {
+.gn-wind-dropdown .dropdown-menu > li > a:hover,
+.gn-wind-dropdown .dropdown-menu > li > a:focus {
   background-color: #f0f9ff !important;
   color: #0284c7 !important;
+  text-decoration: none !important;
+}
+
+.gn-wind-dropdown .dropdown-menu > li.active > a,
+.gn-wind-dropdown .dropdown-menu > li.active > a:hover,
+.gn-wind-dropdown .dropdown-menu > li.active > a:focus {
+  background-color: #e0f2fe !important;
+  color: #0284c7 !important;
+  font-weight: 600 !important;
+  text-decoration: none !important;
+}
+
+.gn-wind-dropdown .dropdown-menu > li > a i {
+  margin-right: 8px !important;
+}
+
+#gn-brand-navbar-bottom .dropdown-menu > li > a {
+  text-decoration: none !important;
+}
+
+#gn-brand-navbar-bottom .dropdown-menu > li.active > a {
+  background-color: #e0f2fe !important;
+  color: #0284c7 !important;
+  font-weight: 600 !important;
+  text-decoration: none !important;
 }
 
 .gn-wind-dropdown .dropdown-header {
