@@ -19,6 +19,8 @@ cdsapi>=0.7.0
 ecmwf-datastores-client>=0.6.0
 pandas>=2.0.0
 numpy>=1.24.0
+duckdb>=1.0.0
+pyarrow>=15.0.0
 
 # Application Server
 gunicorn>=21.0.0

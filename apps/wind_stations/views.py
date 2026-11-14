@@ -3,7 +3,7 @@ from django.contrib.gis.geos import Point
 from django.contrib.gis.measure import D
 from django.db.models import Avg, Count, Max, Min, Q
 from django.db.models.functions import TruncDay, TruncMonth
-from django.http import HttpResponse
+from django.http import FileResponse, HttpResponse
 from django_filters import rest_framework as filters
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
@@ -22,6 +22,16 @@ from .services.province_service import get_province_geometry, get_provinces_wfs_
 from .services.station_service import (
     calculate_wind_rose_data,
     get_station_summary_data,
+)
+from .services.duckdb_storage_service import (
+    get_data_lake_overview,
+    list_data_lake_partitions,
+    delete_partition,
+    get_partition_file_path,
+    ingest_dataframe_to_parquet,
+    export_lake_data,
+    calculate_wind_rose_from_parquet,
+    execute_safe_duckdb_query,
 )
 
 
@@ -424,3 +434,160 @@ class ProvinceWFSFallbackView(APIView):
     def get(self, request, *args, **kwargs):
         data = get_provinces_wfs_data(request)
         return Response(data)
+
+
+class DataLakeViewSet(viewsets.ViewSet):
+    """
+    API ViewSet Quản lý Kho Dữ Liệu Quan Trắc Khí Tượng (DuckDB + Apache Parquet).
+    """
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    @action(detail=False, methods=["get"])
+    def overview(self, request):
+        data = get_data_lake_overview()
+        return Response(data)
+
+    @action(detail=False, methods=["get"])
+    def partitions(self, request):
+        station_code = request.query_params.get("station_code")
+        year = request.query_params.get("year")
+        year_int = int(year) if year and year.isdigit() else None
+        data = list_data_lake_partitions(station_code=station_code, year=year_int)
+        return Response(data)
+
+    @action(detail=False, methods=["post"], url_path="import-file", permission_classes=[permissions.IsAdminUser])
+    def import_file(self, request):
+        uploaded_file = request.FILES.get("file")
+        dry_run = str(request.data.get("dry_run", "false")).lower() in ("true", "1")
+        if not uploaded_file:
+            return Response({"error": "Vui lòng chọn tệp CSV hoặc Excel."}, status=status.HTTP_400_BAD_REQUEST)
+
+        import pandas as pd
+        try:
+            if uploaded_file.name.endswith(".csv"):
+                df = pd.read_csv(uploaded_file)
+            else:
+                df = pd.read_excel(uploaded_file)
+        except Exception as e:
+            return Response({"error": f"Không thể đọc tệp: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+
+        cols_lower = [str(c).strip().lower() for c in df.columns]
+        if "station_code" not in cols_lower or "obs_time" not in cols_lower:
+            return Response({"error": "Tệp thiếu các cột bắt buộc: 'station_code' và 'obs_time'."}, status=status.HTTP_400_BAD_REQUEST)
+
+        obs_col = [c for c in df.columns if str(c).strip().lower() == "obs_time"][0]
+        st_col = [c for c in df.columns if str(c).strip().lower() == "station_code"][0]
+        parsed_dates = pd.to_datetime(df[obs_col], errors="coerce")
+        valid_rows = parsed_dates.notnull() & df[st_col].notnull()
+
+        if dry_run:
+            sample_df = df[valid_rows].head(10)
+            years = [int(y) for y in parsed_dates[valid_rows].dt.year.unique().tolist() if pd.notnull(y)]
+            stations = df[st_col][valid_rows].astype(str).str.strip().unique().tolist()
+            preview = sample_df.to_dict(orient="records")
+            return Response({
+                "valid": True,
+                "total_rows": int(valid_rows.sum()),
+                "stations_affected": stations,
+                "years_affected": years,
+                "preview": preview,
+            })
+
+        try:
+            res = ingest_dataframe_to_parquet(df[valid_rows])
+            return Response(res)
+        except Exception as e:
+            return Response({"error": f"Lỗi khi nạp dữ liệu vào kho Parquet: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=["get"])
+    def download(self, request):
+        station_code = request.query_params.get("station_code")
+        year = request.query_params.get("year")
+        fmt = request.query_params.get("format", "parquet").lower()
+
+        if fmt == "parquet":
+            if not station_code or not year:
+                return Response({"error": "Vui lòng chỉ định station_code và year để tải tệp Parquet."}, status=status.HTTP_400_BAD_REQUEST)
+            file_path = get_partition_file_path(station_code, int(year))
+            if not file_path or not file_path.exists():
+                return Response({"error": "Tệp phân vùng không tồn tại."}, status=status.HTTP_404_NOT_FOUND)
+            response = FileResponse(open(file_path, "rb"), content_type="application/octet-stream")
+            response["Content-Disposition"] = f'attachment; filename="{station_code}_{year}.parquet"'
+            return response
+
+        start_date = request.query_params.get("start_date")
+        end_date = request.query_params.get("end_date")
+        cols_param = request.query_params.get("columns")
+        cols = [c.strip() for c in cols_param.split(",") if c.strip()] if cols_param else None
+
+        df = export_lake_data(station_code=station_code, start_date=start_date, end_date=end_date, columns=cols, fmt="csv")
+        if df is None or df.empty:
+            return Response({"error": "Không có dữ liệu thỏa mãn điều kiện lọc."}, status=status.HTTP_404_NOT_FOUND)
+
+        csv_content = df.to_csv(index=False)
+        response = HttpResponse(csv_content, content_type="text/csv")
+        fname = f"{station_code or 'all_stations'}_export.csv"
+        response["Content-Disposition"] = f'attachment; filename="{fname}"'
+        return response
+
+    @action(detail=False, methods=["delete", "post"], url_path="delete-partition", permission_classes=[permissions.IsAdminUser])
+    def delete_partition_action(self, request):
+        station_code = request.query_params.get("station_code") or request.data.get("station_code")
+        year = request.query_params.get("year") or request.data.get("year")
+        if not station_code or not year:
+            return Response({"error": "Thiếu tham số station_code hoặc year."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            ok = delete_partition(station_code, int(year))
+            if ok:
+                return Response({"message": f"Đã xóa thành công phân vùng {station_code} năm {year}."})
+            return Response({"error": "Không tìm thấy tệp phân vùng để xóa."}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=["post"], url_path="query")
+    def query_analytics(self, request):
+        template = request.data.get("template")
+        station_code = request.data.get("station_code")
+        start_date = request.data.get("start_date")
+        end_date = request.data.get("end_date")
+        sql = request.data.get("sql")
+
+        try:
+            if template == "wind_rose":
+                data = calculate_wind_rose_from_parquet(station_code, start_date, end_date)
+                return Response(data)
+            elif sql:
+                data = execute_safe_duckdb_query(sql)
+                return Response(data)
+            else:
+                return Response({"error": "Vui lòng chọn mẫu phân tích hoặc cung cấp câu lệnh SQL."}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"error": f"Lỗi phân tích DuckDB: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=["post"], url_path="sync-from-db", permission_classes=[permissions.IsAdminUser])
+    def sync_from_db(self, request):
+        from .models import Observation
+        qs = Observation.objects.select_related("station").all()
+        if not qs.exists():
+            return Response({"message": "Không có dữ liệu trong bảng Observation để đồng bộ.", "count": 0})
+
+        import pandas as pd
+        records = []
+        for obs in qs:
+            records.append({
+                "station_code": obs.station.station_code,
+                "obs_time": obs.obs_time,
+                "wind_speed": float(obs.wind_speed) if obs.wind_speed is not None else None,
+                "wind_dir": float(obs.wind_dir) if obs.wind_dir is not None else None,
+                "temp_2m": float(obs.temp_2m) if obs.temp_2m is not None else None,
+                "temp_min": float(obs.temp_min) if obs.temp_min is not None else None,
+                "temp_max": float(obs.temp_max) if obs.temp_max is not None else None,
+                "humidity": float(obs.humidity) if obs.humidity is not None else None,
+                "pressure": float(obs.pressure) if obs.pressure is not None else None,
+                "rain_06h": float(obs.rain_06h) if obs.rain_06h is not None else None,
+                "rain_24h": float(obs.rain_24h) if obs.rain_24h is not None else None,
+            })
+        df = pd.DataFrame(records)
+        res = ingest_dataframe_to_parquet(df)
+        return Response({"message": f"Đã đồng bộ {len(records)} bản ghi từ CSDL sang Kho Parquet.", "result": res})
+

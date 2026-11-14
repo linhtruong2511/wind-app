@@ -432,3 +432,86 @@ class StatisticsViewSetTestCase(TestCase):
         self.assertEqual(res.status_code, 200)
         data = res.json()
         self.assertEqual(data["type"], "FeatureCollection")
+
+
+class DataLakeTestCase(TestCase):
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        self.admin_user = User.objects.create_superuser(
+            username="admin_datalake_test",
+            email="admin@datalake.com",
+            password="testpassword123"
+        )
+        self.client = APIClient()
+
+        self.dataset = Dataset.objects.create(
+            code="LAKE_DATA",
+            name="Lake Dataset",
+            category="STATION",
+        )
+        self.station = Station.objects.create(
+            dataset=self.dataset,
+            station_code="TEST_STATION",
+            name="Trạm Test Parquet",
+            geom=Point(108.0, 15.0),
+            is_active=True,
+        )
+
+    def test_datalake_ingest_and_overview(self):
+        import pandas as pd
+        from wind_stations.services.duckdb_storage_service import (
+            ingest_dataframe_to_parquet,
+            get_data_lake_overview,
+            list_data_lake_partitions,
+            calculate_wind_rose_from_parquet,
+            execute_safe_duckdb_query,
+            delete_partition,
+        )
+
+        # 1. Ingest test data
+        df = pd.DataFrame({
+            "station_code": ["TEST_STATION", "TEST_STATION", "TEST_STATION"],
+            "obs_time": ["2025-01-01 00:00:00", "2025-01-01 01:00:00", "2025-01-01 02:00:00"],
+            "wind_speed": [4.5, 7.2, 9.8],
+            "wind_dir": [90.0, 180.0, 270.0],
+            "temp_2m": [25.0, 26.5, 27.0],
+        })
+
+        res = ingest_dataframe_to_parquet(df)
+        self.assertTrue(res["success"])
+        self.assertEqual(res["total_rows_ingested"], 3)
+
+        # 2. Check overview
+        ov = get_data_lake_overview()
+        self.assertGreaterEqual(ov["total_stations"], 1)
+        self.assertGreaterEqual(ov["total_records"], 3)
+
+        # 3. Check partitions
+        parts = list_data_lake_partitions(station_code="TEST_STATION")
+        self.assertEqual(len(parts), 1)
+        self.assertEqual(parts[0]["station_code"], "TEST_STATION")
+        self.assertEqual(parts[0]["year"], 2025)
+        self.assertEqual(parts[0]["record_count"], 3)
+
+        # 4. Check wind rose calculation via DuckDB
+        wr = calculate_wind_rose_from_parquet(station_code="TEST_STATION")
+        self.assertEqual(wr["total_records"], 3)
+        self.assertAlmostEqual(wr["avg_wind_speed"], 7.17, places=1)
+
+        # 5. Check safe SQL execution
+        sql_res = execute_safe_duckdb_query("SELECT count(*) as total FROM observations WHERE station_code = 'TEST_STATION'")
+        self.assertEqual(sql_res["total_rows"], 1)
+        self.assertEqual(sql_res["data"][0]["total"], 3)
+
+        # 6. Test API endpoints
+        self.client.force_authenticate(user=self.admin_user)
+        res_ov = self.client.get("/wind/api/v1/datalake/overview/")
+        self.assertEqual(res_ov.status_code, 200)
+
+        res_parts = self.client.get("/wind/api/v1/datalake/partitions/?station_code=TEST_STATION")
+        self.assertEqual(res_parts.status_code, 200)
+
+        # 7. Cleanup
+        delete_partition("TEST_STATION", 2025)
+

@@ -198,3 +198,46 @@ export const getDatasetAccessPolicies = (params = {}) => {
     return axios.get(`${BASE_URL}/dataset-access-policies/`, { ...authConfig(), params })
         .then(res => res.data.results || res.data || []);
 };
+
+// ==========================================
+// DuckDB & Parquet Data Lake APIs
+// ==========================================
+export const getDataLakeOverview = () => {
+    return axios.get(`${BASE_URL}/datalake/overview/`, authConfig())
+        .then(res => res.data);
+};
+
+export const getDataLakePartitions = (params = {}) => {
+    return axios.get(`${BASE_URL}/datalake/partitions/`, { ...authConfig(), params })
+        .then(res => res.data);
+};
+
+export const importDataLakeFile = (file, dryRun = false) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('dry_run', dryRun ? 'true' : 'false');
+    return axios.post(`${BASE_URL}/datalake/import-file/`, formData, authConfig({ 'Content-Type': 'multipart/form-data' }))
+        .then(res => res.data);
+};
+
+export const deleteDataLakePartition = (stationCode, year) => {
+    return axios.post(`${BASE_URL}/datalake/delete-partition/`, { station_code: stationCode, year }, authConfig())
+        .then(res => res.data);
+};
+
+export const queryDataLake = (payload) => {
+    return axios.post(`${BASE_URL}/datalake/query/`, payload, authConfig())
+        .then(res => res.data);
+};
+
+export const syncDataLakeFromDb = () => {
+    return axios.post(`${BASE_URL}/datalake/sync-from-db/`, {}, authConfig())
+        .then(res => res.data);
+};
+
+export const getDownloadLakeDataUrl = (stationCode, year, format = 'parquet', extraParams = {}) => {
+    const query = new URLSearchParams({ format, ...extraParams });
+    if (stationCode) query.append('station_code', stationCode);
+    if (year) query.append('year', year);
+    return `${BASE_URL}/datalake/download/?${query.toString()}`;
+};

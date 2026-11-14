@@ -73,4 +73,6 @@ Vagrantfile
 
 wind_rasters/
 apps/wind_rasters/
+apps/media/
+media/
 

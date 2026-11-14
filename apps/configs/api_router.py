@@ -32,6 +32,7 @@ from wind_energy.views import (
 from wind_events.views import MeteorologicalEventViewSet
 from wind_raster.views import RasterGranuleIndexViewSet
 from wind_stations.views import (
+    DataLakeViewSet,
     ObservationViewSet,
     StationViewSet,
     StatisticsViewSet,
@@ -49,6 +50,7 @@ router.register(r"ingestion-logs", IngestionLogViewSet, basename="ingestion-log"
 router.register(r"stations", StationViewSet, basename="station")
 router.register(r"observations", ObservationViewSet, basename="observation")
 router.register(r"statistics", StatisticsViewSet, basename="statistics")
+router.register(r"datalake", DataLakeViewSet, basename="datalake")
 
 # wind_events micro-app
 router.register(r"events", MeteorologicalEventViewSet, basename="event")

@@ -2,6 +2,7 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from .views import (
+    DataLakeViewSet,
     ObservationViewSet,
     ProvinceWFSFallbackView,
     StationViewSet,
@@ -12,6 +13,7 @@ router = DefaultRouter()
 router.register(r"stations", StationViewSet, basename="station")
 router.register(r"observations", ObservationViewSet, basename="observation")
 router.register(r"statistics", StatisticsViewSet, basename="statistics")
+router.register(r"datalake", DataLakeViewSet, basename="datalake")
 
 urlpatterns = [
     path("", include(router.urls)),
