@@ -12,7 +12,7 @@
         {% block logo %}
             <a href="/" class="gn-wind-brand-logo" style="display: flex; align-items: center; gap: 8px; text-decoration: none; padding-right: 12px;">
                 <img src="{% static 'wind_management/images/wind_logo.svg' %}" alt="Wind Logo" width="30" height="30">
-                <span style="font-weight: 800; font-size: 16px; letter-spacing: -0.3px; color: #0284c7;">WIND GEONODE</span>
+                <span style="font-weight: 800; font-size: 16px; letter-spacing: -0.3px; color: #0284c7;">WINDHUB</span>
             </a>
         {% endblock %}
         {% block left_menu %}
@@ -31,15 +31,6 @@
                         <li><a href="/wind-app/#/grid"><i class="fa fa-globe text-primary" style="width: 20px;"></i> {% trans "Bản đồ lưới gió" %}</a></li>
                         <li><a href="/wind-app/#/farms"><i class="fa fa-bolt text-warning" style="width: 20px;"></i> {% trans "Trang trại gió" %}</a></li>
                         <li><a href="/wind-app/#/statistics"><i class="fa fa-bar-chart text-info" style="width: 20px;"></i> {% trans "Thống kê & phân tích" %}</a></li>
-                        <li role="separator" class="divider"></li>
-                        <li><a href="/wind-app/"><i class="fa fa-map" style="width: 20px;"></i> {% trans "Bản đồ GIS tổng quan" %}</a></li>
-                        {% if request.user.is_staff or request.user.is_superuser %}
-                            <li role="separator" class="divider"></li>
-                            <li class="dropdown-header" style="color: #dc2626;">{% trans "Quản trị dữ liệu" %}</li>
-                            <li><a href="/admin/wind/cds/"><i class="fa fa-cloud-download" style="width: 20px;"></i> {% trans "Tải dữ liệu CDS ERA5" %}</a></li>
-                            <li><a href="/admin/wind/upload/"><i class="fa fa-upload" style="width: 20px;"></i> {% trans "Nạp dữ liệu khảo sát" %}</a></li>
-                            <li><a href="/admin/wind/"><i class="fa fa-dashboard" style="width: 20px;"></i> {% trans "Bảng điều khiển quản trị" %}</a></li>
-                        {% endif %}
                     </ul>
                 </li>
                 {% for menu_item in TOPBAR_MENU %}

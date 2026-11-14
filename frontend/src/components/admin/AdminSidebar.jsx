@@ -27,9 +27,8 @@ const AdminSidebar = ({ collapsed, config }) => {
                 {!collapsed && (
                     <div>
                         <div style={{ fontWeight: 800, fontSize: '15px', color: '#f8fafc', letterSpacing: '-0.3px' }}>
-                            WINDHUB ADMIN
+                            WINDHUB
                         </div>
-                        <div style={{ fontSize: '11px', color: '#64748b' }}>Control Center</div>
                     </div>
                 )}
             </div>
@@ -67,29 +66,6 @@ const AdminSidebar = ({ collapsed, config }) => {
 
             {/* Footer */}
             <div style={{ padding: '16px 12px', borderTop: '1px solid #1e293b' }}>
-                {!collapsed && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px', padding: '0 6px' }}>
-                        <div style={{
-                            width: '32px',
-                            height: '32px',
-                            borderRadius: '50%',
-                            backgroundColor: '#1e293b',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: '#38bdf8',
-                            fontWeight: 700
-                        }}>
-                            {((config && config.user) || 'A')[0].toUpperCase()}
-                        </div>
-                        <div style={{ overflow: 'hidden' }}>
-                            <div style={{ fontSize: '13px', fontWeight: 600, color: '#f8fafc', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                                {(config && config.user) || 'Admin'}
-                            </div>
-                            <div style={{ fontSize: '11px', color: '#10b981' }}>Quản trị viên</div>
-                        </div>
-                    </div>
-                )}
                 <NavLink
                     to="/stations"
                     style={{
@@ -108,7 +84,7 @@ const AdminSidebar = ({ collapsed, config }) => {
                     title="Về cổng bản đồ công cộng"
                 >
                     <i className="fa fa-sign-out" style={{ width: '16px', textAlign: 'center' }}></i>
-                    {!collapsed && <span>Về cổng bản đồ</span>}
+                    {!collapsed && <span>Quay lại</span>}
                 </NavLink>
             </div>
         </aside>

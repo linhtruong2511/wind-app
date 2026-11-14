@@ -161,7 +161,7 @@ class DatasetAccessPolicyViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAdminUserOrReadOnly]
     pagination_class = StandardResultsSetPagination
     filter_backends = [filters.DjangoFilterBackend]
-    filterset_fields = ["dataset", "group", "permission"]
+    filterset_fields = ["dataset", "group", "can_view", "can_query", "can_download"]
 
 
 class IngestionLogViewSet(viewsets.ReadOnlyModelViewSet):

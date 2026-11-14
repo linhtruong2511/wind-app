@@ -33,17 +33,22 @@ const AdminDatasetsRoute = () => {
 
     const loadAll = () => {
         setLoading(true);
-        Promise.all([
+        Promise.allSettled([
             getAdminDatasets(),
             getAdminDatasetVariables(selectedDatasetFilter ? { dataset: selectedDatasetFilter } : {}),
             getDatasetAccessPolicies()
-        ]).then(([dsData, varData, polData]) => {
-            setDatasets(dsData);
-            setVariables(varData);
-            setPolicies(polData);
-            setLoading(false);
-        }).catch(err => {
-            setFeedback({ type: 'danger', message: 'Lỗi tải dữ liệu: ' + (err.response?.data?.detail || err.message) });
+        ]).then(([dsRes, varRes, polRes]) => {
+            if (dsRes.status === 'fulfilled') {
+                setDatasets(dsRes.value);
+            } else {
+                setFeedback({ type: 'danger', message: 'Lỗi tải bộ dữ liệu: ' + (dsRes.reason?.response?.data?.detail || dsRes.reason?.message) });
+            }
+            if (varRes.status === 'fulfilled') {
+                setVariables(varRes.value);
+            }
+            if (polRes.status === 'fulfilled') {
+                setPolicies(polRes.value);
+            }
             setLoading(false);
         });
     };
@@ -336,13 +341,15 @@ const AdminDatasetsRoute = () => {
                                     <th style={{ padding: '12px 14px' }}>Mã chính sách</th>
                                     <th style={{ padding: '12px 14px' }}>Bộ dữ liệu</th>
                                     <th style={{ padding: '12px 14px' }}>Nhóm người dùng (GeoNode Group)</th>
-                                    <th style={{ padding: '12px 14px' }}>Quyền hạn truy cập</th>
+                                    <th style={{ padding: '12px 14px' }}>Xem</th>
+                                    <th style={{ padding: '12px 14px' }}>Truy vấn</th>
+                                    <th style={{ padding: '12px 14px' }}>Tải về</th>
                                 </tr>
                             </thead>
                             <tbody style={{ fontSize: '13px' }}>
                                 {policies.length === 0 ? (
                                     <tr>
-                                        <td colSpan="4" style={{ textAlign: 'center', padding: '24px', color: '#94a3b8' }}>
+                                        <td colSpan="6" style={{ textAlign: 'center', padding: '24px', color: '#94a3b8' }}>
                                             {loading ? 'Đang tải chính sách...' : 'Chưa cấu hình chính sách phân quyền riêng (Mặc định tuân theo cấp độ truy cập của Dataset).'}
                                         </td>
                                     </tr>
@@ -353,7 +360,13 @@ const AdminDatasetsRoute = () => {
                                             <td style={{ padding: '12px 14px', fontWeight: 600 }}>{p.dataset_name || `Bộ #${p.dataset}`}</td>
                                             <td style={{ padding: '12px 14px' }}>{p.group_name || `Nhóm #${p.group}`}</td>
                                             <td style={{ padding: '12px 14px' }}>
-                                                <span className="label label-primary" style={{ backgroundColor: '#0284c7' }}>{p.permission}</span>
+                                                {p.can_view ? <span className="label label-success" style={{ backgroundColor: '#10b981' }}>Có</span> : <span className="label label-default">Không</span>}
+                                            </td>
+                                            <td style={{ padding: '12px 14px' }}>
+                                                {p.can_query ? <span className="label label-success" style={{ backgroundColor: '#10b981' }}>Có</span> : <span className="label label-default">Không</span>}
+                                            </td>
+                                            <td style={{ padding: '12px 14px' }}>
+                                                {p.can_download ? <span className="label label-success" style={{ backgroundColor: '#10b981' }}>Có</span> : <span className="label label-default">Không</span>}
                                             </td>
                                         </tr>
                                     ))

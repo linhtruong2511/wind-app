@@ -55,10 +55,10 @@ const AdminDashboardRoute = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                 <div>
                     <h2 style={{ fontSize: '24px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
-                        Trung tâm Chỉ huy WindHUB
+                        Tổng quan hệ thống
                     </h2>
                     <p style={{ color: '#64748b', fontSize: '14px', margin: '4px 0 0 0' }}>
-                        Tổng quan hạ tầng dữ liệu khí tượng gió, trạng thái nạp dữ liệu và các tác vụ nền.
+                        Hạ tầng dữ liệu khí tượng gió, trạng thái nạp dữ liệu và các tác vụ nền.
                     </p>
                 </div>
                 <button
