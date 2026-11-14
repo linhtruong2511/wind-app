@@ -155,6 +155,10 @@ export const createTurbine = (data) => {
         .then(res => res.data);
 };
 
+export const deleteTurbine = (id) => {
+    return axios.delete(`${BASE_URL}/turbines/${id}/`, authConfig());
+};
+
 // Datasets, Variables & Policies
 export const getAdminDatasets = (params = {}) => {
     return axios.get(`${BASE_URL}/datasets/`, { ...authConfig(), params: { all: 'true', ...params } })

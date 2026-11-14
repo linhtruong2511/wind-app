@@ -6,7 +6,8 @@ import {
     updateFarm,
     deleteFarm,
     getAdminTurbines,
-    createTurbine
+    createTurbine,
+    deleteTurbine
 } from '../../api/admin';
 
 const AdminFarmsRoute = () => {
@@ -61,7 +62,18 @@ const AdminFarmsRoute = () => {
 
     useEffect(() => {
         loadAll();
-    }, [selectedFarmFilter]);
+    }, [selectedFarmFilter, activeTab]);
+
+    const handleDeleteTurbine = (id) => {
+        if (window.confirm('Bạn có chắc chắn muốn xóa tuabin này?')) {
+            deleteTurbine(id).then(() => {
+                setFeedback({ type: 'success', message: 'Đã xóa tuabin thành công.' });
+                loadAll();
+            }).catch(err => {
+                setFeedback({ type: 'danger', message: 'Xóa thất bại: ' + (err.response?.data?.detail || err.message) });
+            });
+        }
+    };
 
     const handleSaveFarm = (e) => {
         e.preventDefault();
@@ -327,12 +339,13 @@ const AdminFarmsRoute = () => {
                                     <th style={{ padding: '12px 14px' }}>Loại móng</th>
                                     <th style={{ padding: '12px 14px' }}>Độ sâu đáy (m)</th>
                                     <th style={{ padding: '12px 14px' }}>Trạng thái</th>
+                                    <th style={{ padding: '12px 14px', textAlign: 'right' }}>Thao tác</th>
                                 </tr>
                             </thead>
                             <tbody style={{ fontSize: '13px' }}>
                                 {turbines.length === 0 ? (
                                     <tr>
-                                        <td colSpan="7" style={{ textAlign: 'center', padding: '24px', color: '#94a3b8' }}>
+                                        <td colSpan="8" style={{ textAlign: 'center', padding: '24px', color: '#94a3b8' }}>
                                             {loading ? 'Đang tải danh sách tuabin...' : 'Chưa có tuabin nào được ghi nhận.'}
                                         </td>
                                     </tr>
@@ -342,13 +355,22 @@ const AdminFarmsRoute = () => {
                                             <td style={{ padding: '12px 14px', fontWeight: 600, color: '#0284c7' }}>{t.point_id}</td>
                                             <td style={{ padding: '12px 14px', fontWeight: 600 }}>{t.name || '-'}</td>
                                             <td style={{ padding: '12px 14px' }}>{t.farm_name || `Trang trại #${t.farm}`}</td>
-                                            <td style={{ padding: '12px 14px', fontWeight: 600 }}>{t.capacity_mw ? `${t.capacity_mw} MW` : '-'}</td>
+                                            <td style={{ padding: '12px 14px', fontWeight: 600 }}>{(t.capacity_mw || t.predicted_power_mw) ? `${t.capacity_mw || t.predicted_power_mw} MW` : '-'}</td>
                                             <td style={{ padding: '12px 14px' }}>{t.foundation_type || 'Móng đơn'}</td>
                                             <td style={{ padding: '12px 14px' }}>{t.depth_m ?? '-'}</td>
                                             <td style={{ padding: '12px 14px' }}>
-                                                <span className={`label label-${t.status === 'OPERATING' ? 'success' : t.status === 'MAINTENANCE' ? 'warning' : 'default'}`}>
+                                                <span className={`label label-${t.status === 'OPERATING' || t.status === 'OPERATIONAL' ? 'success' : t.status === 'MAINTENANCE' ? 'warning' : 'default'}`}>
                                                     {t.status}
                                                 </span>
+                                            </td>
+                                            <td style={{ padding: '12px 14px', textAlign: 'right' }}>
+                                                <button
+                                                    onClick={() => handleDeleteTurbine(t.id)}
+                                                    className="btn btn-xs btn-danger"
+                                                    title="Xóa"
+                                                >
+                                                    <i className="fa fa-trash"></i>
+                                                </button>
                                             </td>
                                         </tr>
                                     ))
