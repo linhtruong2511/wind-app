@@ -43,6 +43,9 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "django.contrib.gis",
     
+    # GeoNode User model integration
+    "people",
+    
     # Third-party apps
     "rest_framework",
     "rest_framework_gis",
@@ -106,6 +109,9 @@ DATABASES = {
         "PORT": os.environ.get("DATABASE_PORT", "5432"),
     }
 }
+
+# User Model integration with GeoNode's people_profile table
+AUTH_USER_MODEL = "people.Profile"
 
 
 # Password validation
