@@ -9,6 +9,7 @@ function mount() {
         const config = {
             user: container.dataset.user || '',
             isStaff: container.dataset.isStaff === 'true',
+            isSuperuser: container.dataset.isSuperuser === 'true',
             isAuthenticated: container.dataset.isAuthenticated === 'true',
             apiBase: container.dataset.apiBase || '/wind/api/v1'
         };

@@ -26,6 +26,7 @@
         id="wind-app-root"
         data-user="{{ request.user.username|default:'' }}"
         data-is-staff="{{ request.user.is_staff|yesno:'true,false' }}"
+        data-is-superuser="{{ request.user.is_superuser|yesno:'true,false' }}"
         data-is-authenticated="{{ request.user.is_authenticated|yesno:'true,false' }}"
         data-api-base="/wind/api/v1"
     >

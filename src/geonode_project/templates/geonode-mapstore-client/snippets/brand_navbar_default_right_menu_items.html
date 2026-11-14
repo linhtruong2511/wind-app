@@ -22,9 +22,11 @@
                     <li><a href="/social/recent-activity">{% trans "Recent activity" %}</a></li>
                     <li><a href="/catalogue/search/#/?f=favorite">{% trans "Favorites" %}</a></li>
                     <li role="separator" class="divider"></li>
-                    {% if request.user.is_superuser %}
+                    <li><a href="/wind-app/">WindHUB</a></li>
+                    <li role="separator" class="divider"></li>
+                    {% if request.user.is_staff or request.user.is_superuser %}
                         <li><a href="/admin/">{% trans "Admin" %}</a></li>
-                        <li><a href="/wind-app/">WindHUB</a></li>
+                        <li><a href="/wind-app/#/admin"><i class="fa fa-cogs" style="margin-right: 5px; color: #0284c7;"></i>WindHUB Admin</a></li>
                         <li><a href="{{ settings.GEOSERVER_WEB_UI_LOCATION }}">{% trans "GeoServer" %}</a></li>
                         <li role="separator" class="divider"></li>
                     {% endif %}
