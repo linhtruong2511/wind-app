@@ -35,7 +35,7 @@
   - Endpoint `POST /wind/api/v1/observations/import_file/`
   - Endpoint `GET /wind/api/v1/datasets/dashboard-stats/`
 
-- [ ] **Step 1: Write tests for Admin permissions and custom endpoints**
+- [x] **Step 1: Write tests for Admin permissions and custom endpoints**
 
 Create `apps/tests/test_admin_endpoints.py`:
 ```python
@@ -76,12 +76,12 @@ class AdminEndpointsTest(TestCase):
         self.assertIn(response.status_code, [status.HTTP_201_CREATED, status.HTTP_400_BAD_REQUEST])
 ```
 
-- [ ] **Step 2: Run test in Docker to verify it fails**
+- [x] **Step 2: Run test in Docker to verify it fails**
 
 Run: `docker compose exec wind_be python manage.py test tests.test_admin_endpoints`
 Expected: FAIL with 404 or 403 because endpoints are not yet registered.
 
-- [ ] **Step 3: Implement `IsAdminUserOrReadOnly` in `apps/wind_core/utils.py`**
+- [x] **Step 3: Implement `IsAdminUserOrReadOnly` in `apps/wind_core/utils.py`**
 
 Add to `apps/wind_core/utils.py`:
 ```python
@@ -95,7 +95,7 @@ class IsAdminUserOrReadOnly(permissions.BasePermission):
         return bool(request.user and (request.user.is_staff or request.user.is_superuser))
 ```
 
-- [ ] **Step 4: Implement `dashboard-stats` action in `apps/wind_core/views.py`**
+- [x] **Step 4: Implement `dashboard-stats` action in `apps/wind_core/views.py`**
 
 Add to `DatasetViewSet` in `apps/wind_core/views.py`:
 ```python
@@ -124,7 +124,7 @@ Add to `DatasetViewSet` in `apps/wind_core/views.py`:
         return Response(data)
 ```
 
-- [ ] **Step 5: Implement `upload` action in `apps/wind_raster/views.py`**
+- [x] **Step 5: Implement `upload` action in `apps/wind_raster/views.py`**
 
 Add action in `RasterGranuleIndexViewSet` in `apps/wind_raster/views.py`:
 ```python
@@ -171,7 +171,7 @@ Add action in `RasterGranuleIndexViewSet` in `apps/wind_raster/views.py`:
                 os.remove(tmp_path)
 ```
 
-- [ ] **Step 6: Update `StationViewSet` to `ModelViewSet` and add `import_file` to `ObservationViewSet`**
+- [x] **Step 6: Update `StationViewSet` to `ModelViewSet` and add `import_file` to `ObservationViewSet`**
 
 In `apps/wind_stations/views.py`:
 Change `StationViewSet(viewsets.ReadOnlyModelViewSet)` to `viewsets.ModelViewSet` with `permission_classes = [IsAdminUserOrReadOnly]`.
@@ -233,12 +233,12 @@ Add action in `ObservationViewSet`:
         return Response({"message": f"Đã nạp {created_count} bản ghi quan trắc thành công."})
 ```
 
-- [ ] **Step 7: Run test to verify it passes**
+- [x] **Step 7: Run test to verify it passes**
 
 Run: `docker compose exec wind_be python manage.py test tests.test_admin_endpoints`
 Expected: PASS (2 tests pass).
 
-- [ ] **Step 8: Commit Task 1**
+- [x] **Step 8: Commit Task 1**
 
 ```bash
 git add apps/wind_core/utils.py apps/wind_core/views.py apps/wind_raster/views.py apps/wind_stations/views.py apps/tests/test_admin_endpoints.py
@@ -262,7 +262,7 @@ git commit -m "feat(api): add admin permission guards and import/upload endpoint
   - `.wind-admin-fullscreen-active` CSS rules in `wind_hybrid.css`
   - Updated GeoNode WindHUB menu link pointing to `/wind-app/#/admin`
 
-- [ ] **Step 1: Update WindHUB menu item in `brand_navbar_default_right_menu_items.html`**
+- [x] **Step 1: Update WindHUB menu item in `brand_navbar_default_right_menu_items.html`**
 
 Update lines 26-28 of `src/geonode_project/templates/geonode-mapstore-client/snippets/brand_navbar_default_right_menu_items.html`:
 ```html
@@ -274,7 +274,7 @@ Update lines 26-28 of `src/geonode_project/templates/geonode-mapstore-client/sni
                     {% endif %}
 ```
 
-- [ ] **Step 2: Update container attributes in `src/geonode_project/templates/wind_management/app.html`**
+- [x] **Step 2: Update container attributes in `src/geonode_project/templates/wind_management/app.html`**
 
 In `src/geonode_project/templates/wind_management/app.html`, add `data-is-superuser`:
 ```html
@@ -288,7 +288,7 @@ In `src/geonode_project/templates/wind_management/app.html`, add `data-is-superu
     >
 ```
 
-- [ ] **Step 3: Update `frontend/src/main.jsx`**
+- [x] **Step 3: Update `frontend/src/main.jsx`**
 
 Read `isSuperuser` dataset property:
 ```javascript
@@ -301,7 +301,7 @@ Read `isSuperuser` dataset property:
         };
 ```
 
-- [ ] **Step 4: Add Fullscreen Shell & Sidebar styles in `frontend/src/styles/wind_hybrid.css`**
+- [x] **Step 4: Add Fullscreen Shell & Sidebar styles in `frontend/src/styles/wind_hybrid.css`**
 
 Add at the end of `frontend/src/styles/wind_hybrid.css`:
 ```css
@@ -380,7 +380,7 @@ body.wind-admin-fullscreen-active #wind-app-root {
 }
 ```
 
-- [ ] **Step 5: Commit Task 2**
+- [x] **Step 5: Commit Task 2**
 
 ```bash
 git add src/geonode_project/templates/ frontend/src/main.jsx frontend/src/styles/wind_hybrid.css
@@ -402,7 +402,7 @@ git commit -m "feat(admin): configure dynamic fullscreen shell and WindHUB admin
 - Consumes: `config.isStaff`, `config.isSuperuser`, `config.user`, React Router `NavLink`, `useLocation`
 - Produces: `<AdminLayout />` wrapper, active menu styling, collapse toggle, permission denial screen
 
-- [ ] **Step 1: Create `frontend/src/components/admin/AdminRouteGuard.jsx`**
+- [x] **Step 1: Create `frontend/src/components/admin/AdminRouteGuard.jsx`**
 
 ```jsx
 import React from 'react';
@@ -457,7 +457,7 @@ AdminRouteGuard.propTypes = {
 export default AdminRouteGuard;
 ```
 
-- [ ] **Step 2: Create `frontend/src/components/admin/AdminSidebar.jsx`**
+- [x] **Step 2: Create `frontend/src/components/admin/AdminSidebar.jsx`**
 
 ```jsx
 import React from 'react';
@@ -585,7 +585,7 @@ AdminSidebar.propTypes = {
 export default AdminSidebar;
 ```
 
-- [ ] **Step 3: Create `frontend/src/components/admin/AdminTopbar.jsx`**
+- [x] **Step 3: Create `frontend/src/components/admin/AdminTopbar.jsx`**
 
 ```jsx
 import React from 'react';
@@ -646,7 +646,7 @@ AdminTopbar.propTypes = {
 export default AdminTopbar;
 ```
 
-- [ ] **Step 4: Create `frontend/src/components/admin/AdminLayout.jsx`**
+- [x] **Step 4: Create `frontend/src/components/admin/AdminLayout.jsx`**
 
 ```jsx
 import React, { useState, useEffect } from 'react';
@@ -685,7 +685,7 @@ AdminLayout.propTypes = {
 export default AdminLayout;
 ```
 
-- [ ] **Step 5: Register Admin routes in `frontend/src/App.jsx`**
+- [x] **Step 5: Register Admin routes in `frontend/src/App.jsx`**
 
 Update `frontend/src/App.jsx` to register `/admin/*` routes wrapped in `<AdminRouteGuard>`:
 ```jsx
@@ -718,7 +718,7 @@ And inside `<Routes>`:
     </Route>
 ```
 
-- [ ] **Step 6: Commit Task 3**
+- [x] **Step 6: Commit Task 3**
 
 ```bash
 git add frontend/src/components/admin/ frontend/src/App.jsx
@@ -741,25 +741,26 @@ git commit -m "feat(admin): create admin layout, sidebar navigation, and route g
 - Consumes: `/wind/api/v1/datasets/dashboard-stats/`, `/wind/api/v1/cds-credentials/`, `/wind/api/v1/cds-jobs/`, `/wind/api/v1/raster-granules/upload/`, `/wind/api/v1/observations/import-file/`
 - Produces: 6 complete functional admin views
 
-- [ ] **Step 1: Create `frontend/src/routes/admin/AdminDashboardRoute.jsx`**
+- [x] **Step 1: Create `frontend/src/routes/admin/AdminDashboardRoute.jsx`**
 Build KPI cards (Trạm đo, Lưới raster, Tác vụ CDS, Trang trại gió) and the table of recent `IngestionLog` items with status badges.
 
-- [ ] **Step 2: Create `frontend/src/routes/admin/AdminCdsRoute.jsx`**
+- [x] **Step 2: Create `frontend/src/routes/admin/AdminCdsRoute.jsx`**
 Build 3 tabs: Credentials (with "Test connection" action), Download Jobs (list & modal form to configure area and schedule), and Job Runs history.
 
-- [ ] **Step 3: Create `frontend/src/routes/admin/AdminRastersRoute.jsx`**
+- [x] **Step 3: Create `frontend/src/routes/admin/AdminRastersRoute.jsx`**
 Build Drag & Drop upload zone for `.nc` / `.zip` files with upload progress bar, and Granule Index filterable data table.
 
-- [ ] **Step 4: Create `frontend/src/routes/admin/AdminStationsRoute.jsx`**
+- [x] **Step 4: Create `frontend/src/routes/admin/AdminStationsRoute.jsx`**
 Build Station Management table + Observation Excel/CSV batch importer with preview and validation.
 
-- [ ] **Step 5: Create `frontend/src/routes/admin/AdminFarmsRoute.jsx`**
+- [x] **Step 5: Create `frontend/src/routes/admin/AdminFarmsRoute.jsx`**
 Build Wind Farm list, capacity editor, and Wind Turbine batch coordinate importer.
 
-- [ ] **Step 6: Create `frontend/src/routes/admin/AdminDatasetsRoute.jsx`**
+- [x] **Step 6: Create `frontend/src/routes/admin/AdminDatasetsRoute.jsx`**
 Build Dataset metadata list, DatasetVariable component configuration, and Group Access Policy matrix.
 
-- [ ] **Step 7: Commit Task 4**
+- [x] **Step 7: Commit Task 4**
+
 
 ```bash
 git add frontend/src/routes/admin/
@@ -775,21 +776,21 @@ git commit -m "feat(admin): implement 6 admin module management views"
 - Verify: `src/geonode_project/static/wind_management/dist/wind_app.js` and `wind_app.css`
 - Run: Django backend test suite via Docker
 
-- [ ] **Step 1: Execute Vite production build**
+- [x] **Step 1: Execute Vite production build**
 
 Run: `cd frontend; npm run build`
 Expected output: Built successfully without errors, producing `src/geonode_project/static/wind_management/dist/wind_app.js`.
 
-- [ ] **Step 2: Run backend tests in Docker**
+- [x] **Step 2: Run backend tests in Docker**
 
 Run: `docker compose exec wind_be python manage.py test tests`
 Expected output: All tests pass.
 
-- [ ] **Step 3: Verify Admin route accessibility**
+- [x] **Step 3: Verify Admin route accessibility**
 
 Confirm that navigating to `http://localhost/wind-app/#/admin` loads the fullscreen admin layout for staff users, and blocks unauthenticated/non-staff users with 403 Forbidden.
 
-- [ ] **Step 4: Commit Task 5**
+- [x] **Step 4: Commit Task 5**
 
 ```bash
 git add src/geonode_project/static/wind_management/dist/
