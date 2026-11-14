@@ -38,12 +38,20 @@ def get_raster_granule_model():
 
 
 class DatasetViewSet(viewsets.ModelViewSet):
-    queryset = Dataset.objects.all().order_by("id")
+    queryset = Dataset.objects.filter(is_active=True).order_by("id")
     serializer_class = DatasetSerializer
     permission_classes = [IsAdminUserOrReadOnly]
     pagination_class = StandardResultsSetPagination
     filter_backends = [filters.DjangoFilterBackend]
     filterset_fields = ["category"]
+
+    def get_queryset(self):
+        user = getattr(self.request, "user", None)
+        is_staff = user and user.is_authenticated and (user.is_staff or user.is_superuser)
+        include_all = str(self.request.query_params.get("all", "")).lower() in ("true", "1")
+        if is_staff and include_all:
+            return Dataset.objects.all().order_by("id")
+        return super().get_queryset()
 
     @action(detail=False, methods=["get"], url_path="dashboard-stats", permission_classes=[permissions.IsAdminUser])
     def dashboard_stats(self, request):

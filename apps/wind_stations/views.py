@@ -29,7 +29,7 @@ class StationViewSet(viewsets.ModelViewSet):
     """
     API ViewSet cho trạm quan trắc khí tượng gió.
     """
-    queryset = Station.objects.all().order_by("id")
+    queryset = Station.objects.filter(is_active=True).order_by("id")
     serializer_class = StationSerializer
     permission_classes = [IsAdminUserOrReadOnly]
     pagination_class = StandardResultsSetPagination
@@ -38,7 +38,13 @@ class StationViewSet(viewsets.ModelViewSet):
     filterset_fields = ["station_type", "dataset__code"]
 
     def get_queryset(self):
-        qs = super().get_queryset()
+        user = getattr(self.request, "user", None)
+        is_staff = user and user.is_authenticated and (user.is_staff or user.is_superuser)
+        include_all = str(self.request.query_params.get("all", "")).lower() in ("true", "1")
+        if is_staff and include_all:
+            qs = Station.objects.all().order_by("id")
+        else:
+            qs = super().get_queryset()
 
         # Tìm kiếm theo tên hoặc mã trạm
         search = self.request.query_params.get("search")

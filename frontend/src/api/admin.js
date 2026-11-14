@@ -99,7 +99,7 @@ export const getRasterGranules = (params = {}) => {
 
 // Stations & Observations
 export const getAdminStations = (params = {}) => {
-    return axios.get(`${BASE_URL}/stations/`, { ...authConfig(), params })
+    return axios.get(`${BASE_URL}/stations/`, { ...authConfig(), params: { all: 'true', ...params } })
         .then(res => res.data.results || res.data || []);
 };
 
@@ -157,7 +157,7 @@ export const createTurbine = (data) => {
 
 // Datasets, Variables & Policies
 export const getAdminDatasets = (params = {}) => {
-    return axios.get(`${BASE_URL}/datasets/`, { ...authConfig(), params })
+    return axios.get(`${BASE_URL}/datasets/`, { ...authConfig(), params: { all: 'true', ...params } })
         .then(res => res.data.results || res.data || []);
 };
 
