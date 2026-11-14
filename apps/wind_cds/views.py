@@ -25,8 +25,8 @@ class CDSCredentialViewSet(viewsets.ModelViewSet):
         drf_filters.SearchFilter,
         drf_filters.OrderingFilter,
     ]
-    filterset_fields = ["is_active"]
     search_fields = ["name", "url"]
+    filterset_fields = ["is_active"]
     ordering_fields = ["id", "name", "created_at"]
 
     @action(detail=True, methods=["post"], url_path="test-connection")

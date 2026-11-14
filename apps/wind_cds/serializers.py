@@ -4,7 +4,7 @@ from .models import CDSCredential, CDSDownloadJob, CDSJobRun
 
 
 class CDSCredentialSerializer(serializers.ModelSerializer):
-    key = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    api_key = serializers.CharField(write_only=True, required=False, allow_blank=True)
     masked_key = serializers.CharField(read_only=True)
 
     class Meta:
@@ -13,7 +13,7 @@ class CDSCredentialSerializer(serializers.ModelSerializer):
             "id",
             "name",
             "url",
-            "key",
+            "api_key",
             "masked_key",
             "is_active",
             "created_at",
@@ -21,7 +21,7 @@ class CDSCredentialSerializer(serializers.ModelSerializer):
         ]
 
     def create(self, validated_data):
-        key = validated_data.pop("key", None)
+        key = validated_data.pop("api_key", None)
         instance = super().create(validated_data)
         if key is not None:
             instance.set_key(key)
@@ -29,7 +29,7 @@ class CDSCredentialSerializer(serializers.ModelSerializer):
         return instance
 
     def update(self, instance, validated_data):
-        key = validated_data.pop("key", None)
+        key = validated_data.pop("api_key", None)
         instance = super().update(instance, validated_data)
         if key is not None:
             instance.set_key(key)

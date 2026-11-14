@@ -74,7 +74,6 @@ const AdminCdsRoute = () => {
         if (credForm.api_key) {
             payload.api_key = credForm.api_key;
         }
-
         const promise = credForm.id
             ? updateCDSCredential(credForm.id, payload)
             : createCDSCredential(payload);
