@@ -22,8 +22,6 @@
                     <li><a href="/social/recent-activity">{% trans "Recent activity" %}</a></li>
                     <li><a href="/catalogue/search/#/?f=favorite">{% trans "Favorites" %}</a></li>
                     <li role="separator" class="divider"></li>
-                    <li><a href="/wind-app/">WindHUB</a></li>
-                    <li role="separator" class="divider"></li>
                     {% if request.user.is_staff or request.user.is_superuser %}
                         <li><a href="/admin/">{% trans "Admin" %}</a></li>
                         <li><a href="/wind-app/#/admin">{% trans "WindHUB" %}</a></li>

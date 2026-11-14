@@ -26,7 +26,7 @@ const WindStationFilterControls = ({
 }) => {
     return (
         <Panel header={<h4>Bộ lọc thời gian & Yếu tố phân tích</h4>}>
-            <Row>
+            <Row  style={{ padding: '8px'}}>
                 <Col xs={12} sm={3}>
                     <FormGroup controlId="viewModeSelect">
                         <ControlLabel style={{ fontSize: '12px' }}>Chế độ xem</ControlLabel>

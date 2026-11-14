@@ -114,7 +114,7 @@ const WindStationPlotlyChart = ({
     };
 
     return (
-        <Panel header={<h4>{viewMode === 'raw' ? 'Chuỗi số liệu quan trắc thực tế' : `Biểu đồ thống kê ${currentVar.label} theo ${viewMode === 'monthly' ? 'tháng' : 'năm'}`}</h4>}>
+        <Panel style={{ padding: '8px'}} header={<h4>{viewMode === 'raw' ? 'Chuỗi số liệu quan trắc thực tế' : `Biểu đồ thống kê ${currentVar.label} theo ${viewMode === 'monthly' ? 'tháng' : 'năm'}`}</h4>}>
             <Plot
                 data={plotData}
                 layout={layout}

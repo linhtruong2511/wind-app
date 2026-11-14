@@ -23,7 +23,7 @@ const WindStationInfoCard = ({ station }) => {
 
     return (
         <Panel header={<h4>Thông tin trạm quan trắc</h4>} bsStyle="primary">
-            <div style={{ fontSize: '13px', lineHeight: '2.2' }}>
+            <div style={{ fontSize: '13px', lineHeight: '2.2', padding: '8px', color: '#334155' }}>
                 <div style={{ borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ color: '#64748b' }}>Mã trạm:</span>
                     <strong>{stationCode}</strong>
