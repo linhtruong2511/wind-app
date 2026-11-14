@@ -16,6 +16,19 @@ import {
     getDownloadLakeDataUrl
 } from '../../api/admin';
 
+// Tệp CSV mẫu cho chức năng nạp số liệu (khớp với STANDARD_COLUMNS ở backend)
+const IMPORT_TEMPLATE_HEADER = [
+    'station_code', 'obs_time', 'wind_speed', 'wind_dir', 'temp_2m', 'temp_min', 'temp_max',
+    'humidity', 'pressure', 'rain_06h', 'rain_24h'
+];
+const IMPORT_TEMPLATE_ROWS = [
+    ['WS001', '2025-01-01 00:00:00', '3.5', '45', '18.2', '16.1', '20.4', '78', '1012.3', '0', '0'],
+    ['WS001', '2025-01-01 01:00:00', '4.1', '50', '17.8', '15.9', '19.6', '80', '1012.1', '0', '0'],
+    ['WS001', '2025-01-01 02:00:00', '2.8', '90', '17.5', '15.7', '19.2', '82', '1011.8', '0', '0'],
+    ['WS001', '2025-01-01 03:00:00', '5.2', '135', '17.1', '15.4', '18.9', '84', '1011.5', '0', '0'],
+    ['WS001', '2025-01-01 04:00:00', '6.0', '180', '16.9', '15.2', '18.5', '85', '1011.2', '0', '0.4'],
+];
+
 const AdminStationsRoute = () => {
     // Tabs: 'stations' | 'datalake' | 'import' | 'analytics'
     const [activeTab, setActiveTab] = useState('stations');
@@ -209,6 +222,20 @@ const AdminStationsRoute = () => {
             setFeedback({ type: 'danger', message: 'Nạp dữ liệu thất bại: ' + (err.response?.data?.error || err.message) });
             setImportLoading(false);
         });
+    };
+
+    const handleDownloadTemplate = () => {
+        const csvLines = [IMPORT_TEMPLATE_HEADER, ...IMPORT_TEMPLATE_ROWS].map(row => row.join(',')).join('\r\n');
+        // BOM (\uFEFF) giúp Excel nhận đúng UTF-8 khi mở tệp
+        const blob = new Blob(['\uFEFF' + csvLines + '\r\n'], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'mau_import_so_lieu_quan_trac.csv';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
     };
 
     const handleSyncFromDb = () => {
@@ -660,7 +687,7 @@ const AdminStationsRoute = () => {
             {activeTab === 'import' && (
                 <div style={{ background: '#ffffff', borderRadius: '12px', padding: '24px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
                     <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', marginTop: 0, marginBottom: '6px' }}>
-                        Trung Tâm Nạp Dữ Liệu Quan Trắc Hàng Loạt (Batch Data Ingestion)
+                        Trung Tâm Nạp Dữ Liệu Quan Trắc Hàng Loạt
                     </h3>
                     <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '20px' }}>
                         Hỗ trợ nạp tệp bảng tính Excel (.xlsx, .xls) hoặc tệp CSV (.csv). Dữ liệu sẽ tự động được làm sạch, kiểm tra trùng lặp và lưu trữ tối ưu.
@@ -680,7 +707,7 @@ const AdminStationsRoute = () => {
                                     checked={importTarget === 'lake'}
                                     onChange={() => setImportTarget('lake')}
                                 />
-                                Kho Parquet siêu nén (DuckDB Data Lake) &mdash; <span style={{ color: '#10b981', fontWeight: 700 }}>Khuyến nghị cho Dữ liệu lớn</span>
+                                Kho Parquet siêu nén (Khuyến nghị cho dữ liệu lớn)
                             </label>
                             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: '#64748b' }}>
                                 <input
@@ -690,12 +717,12 @@ const AdminStationsRoute = () => {
                                     checked={importTarget === 'db'}
                                     onChange={() => setImportTarget('db')}
                                 />
-                                Cơ sở dữ liệu quan hệ (PostgreSQL Legacy)
+                                Cơ sở dữ liệu quan hệ (PostgreSQL)
                             </label>
                         </div>
                         <p style={{ fontSize: '12px', color: '#64748b', margin: '8px 0 0 0' }}>
                             {importTarget === 'lake'
-                                ? 'Dữ liệu được nén theo cột bằng Zstandard, chia tệp theo trạm/năm, ghi nối tiếp (upsert) tức thì không gây khóa database hay chậm hệ thống.'
+                                ? 'Dữ liệu được nén theo cột bằng Zstandard, chia tệp theo trạm/năm, ghi nối tiếp tức thì không gây khóa database hay chậm hệ thống.'
                                 : 'Dữ liệu được ghi thẳng vào bảng wind_observations của PostgreSQL bằng bulk_create.'}
                         </p>
                     </div>
@@ -741,9 +768,18 @@ const AdminStationsRoute = () => {
 
                     <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
                         <button
+                            type="button"
+                            onClick={handleDownloadTemplate}
+                            className="btn btn-default"
+                            style={{ borderRadius: '6px', fontWeight: 600 }}
+                        >
+                            <i className="fa fa-download" style={{ marginRight: '6px' }}></i>
+                            Tải tệp mẫu (.csv)
+                        </button>
+                        <button
                             onClick={handleDryRun}
                             disabled={!importFile || dryRunLoading || importLoading}
-                            className="btn btn-info"
+                            className="btn btn-primary"
                             style={{ borderRadius: '6px', fontWeight: 600 }}
                         >
                             <i className={`fa fa-check ${dryRunLoading ? 'fa-spin' : ''}`} style={{ marginRight: '6px' }}></i>
@@ -756,7 +792,7 @@ const AdminStationsRoute = () => {
                             style={{ borderRadius: '6px', fontWeight: 600 }}
                         >
                             <i className={`fa fa-cloud-upload ${importLoading ? 'fa-spin' : ''}`} style={{ marginRight: '6px' }}></i>
-                            {importLoading ? 'Đang nạp số liệu...' : (importTarget === 'lake' ? 'Nạp vào Kho Parquet' : 'Nạp vào CSDL PostgreSQL')}
+                            {importLoading ? 'Đang nạp số liệu...' : 'Nạp dữ liệu'}
                         </button>
                     </div>
 
@@ -1104,6 +1140,7 @@ const AdminStationsRoute = () => {
                                 <div className="form-group">
                                     <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Mã trạm *</label>
                                     <input
+                                        disabled
                                         type="text"
                                         className="form-control"
                                         value={stationForm.station_code}
@@ -1125,15 +1162,13 @@ const AdminStationsRoute = () => {
                                 </div>
                             </div>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
-                                <div className="form-group">
+                                <div className="">
                                     <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Loại trạm</label>
-                                    <input
-                                        type="text"
-                                        className="form-control"
-                                        value={stationForm.station_type}
-                                        onChange={e => setStationForm({ ...stationForm, station_type: e.target.value })}
-                                        placeholder="VD: SURFACE / MET_MAST / BUOY"
-                                    />
+                                    <select className="form-control" value={stationForm.station_type} onChange={e => setStationForm({ ...stationForm, station_type: e.target.value })}>
+                                        <option value="SURFACE">SURFACE</option>
+                                        <option value="MET_MAST">MET_MAST</option>
+                                        <option value="BUOY">BUOY</option>
+                                    </select>
                                 </div>
                                 <div className="form-group">
                                     <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Độ cao địa hình (m)</label>

@@ -484,7 +484,9 @@ class DataLakeViewSet(viewsets.ViewSet):
             sample_df = df[valid_rows].head(10)
             years = [int(y) for y in parsed_dates[valid_rows].dt.year.unique().tolist() if pd.notnull(y)]
             stations = df[st_col][valid_rows].astype(str).str.strip().unique().tolist()
-            preview = sample_df.to_dict(orient="records")
+            preview_df = sample_df.astype(object).where(sample_df.notnull(), None)
+            preview = preview_df.to_dict(orient="records")
+            
             return Response({
                 "valid": True,
                 "total_rows": int(valid_rows.sum()),
