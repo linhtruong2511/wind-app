@@ -13,7 +13,9 @@ import {
     runCDSJob,
     getCDSJobRuns,
     getAdminDatasets,
+    getCDSJobsCatalog,
 } from '../../api/admin';
+import CDSQueryBuilderModal from '../../components/admin/CDSQueryBuilderModal';
 
 const AdminCdsRoute = () => {
     const [activeTab, setActiveTab] = useState('credentials'); // 'credentials' | 'jobs' | 'runs'
@@ -21,6 +23,8 @@ const AdminCdsRoute = () => {
     const [jobs, setJobs] = useState([]);
     const [runs, setRuns] = useState([]);
     const [datasets, setDatasets] = useState([]);
+    const [catalog, setCatalog] = useState({});
+    const [areaPresets, setAreaPresets] = useState({});
     const [loading, setLoading] = useState(false);
     const [feedback, setFeedback] = useState(null); // { type: 'success' | 'danger', message: '' }
 
@@ -29,6 +33,7 @@ const AdminCdsRoute = () => {
     const [credForm, setCredForm] = useState({ id: null, name: '', url: 'https://cds.climate.copernicus.eu/api', api_key: '', is_active: true });
     
     const [showJobModal, setShowJobModal] = useState(false);
+    const [showBuilderModal, setShowBuilderModal] = useState(false);
     const [jobForm, setJobForm] = useState({
         id: null,
         name: '',
@@ -46,12 +51,17 @@ const AdminCdsRoute = () => {
             getCDSCredentials(),
             getCDSJobs(),
             getCDSJobRuns(),
-            getAdminDatasets()
-        ]).then(([credData, jobData, runData, dsData]) => {
+            getAdminDatasets(),
+            getCDSJobsCatalog().catch(() => ({ catalog: {}, area_presets: {} }))
+        ]).then(([credData, jobData, runData, dsData, catData]) => {
             setCredentials(credData);
             setJobs(jobData);
             setRuns(runData);
             setDatasets(dsData);
+            if (catData) {
+                setCatalog(catData.catalog || {});
+                setAreaPresets(catData.area_presets || {});
+            }
             setLoading(false);
         }).catch(err => {
             setFeedback({ type: 'danger', message: 'Lỗi tải dữ liệu: ' + (err.response?.data?.detail || err.message) });
@@ -155,6 +165,31 @@ const AdminCdsRoute = () => {
         }
     };
 
+    const handleSaveJobFromBuilder = (payload, runImmediately) => {
+        setFeedback({
+            type: 'info',
+            message: runImmediately
+                ? 'Đang tạo tác vụ và kích hoạt Celery Worker tải dữ liệu...'
+                : 'Đang lưu tác vụ thu thập CDS...'
+        });
+        setShowBuilderModal(false);
+
+        createCDSJob(payload).then(res => {
+            if (runImmediately) {
+                setFeedback({
+                    type: 'success',
+                    message: `Đã kích hoạt tải dữ liệu CDS thành công! (Task ID: ${res.task_id || 'queued'}). Dữ liệu đang được tải và nạp vào Dataset.`
+                });
+                setActiveTab('runs');
+            } else {
+                setFeedback({ type: 'success', message: 'Lưu tác vụ thu thập CDS thành công!' });
+            }
+            loadAll();
+        }).catch(err => {
+            setFeedback({ type: 'danger', message: 'Không thể tạo tác vụ: ' + JSON.stringify(err.response?.data || err.message) });
+        });
+    };
+
     return (
         <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
             {/* Header */}
@@ -182,23 +217,11 @@ const AdminCdsRoute = () => {
                     )}
                     {activeTab === 'jobs' && (
                         <button
-                            onClick={() => {
-                                setJobForm({
-                                    id: null,
-                                    name: '',
-                                    credential: credentials[0]?.id || '',
-                                    dataset: datasets[0]?.id || '',
-                                    dataset_name: 'reanalysis-era5-single-levels',
-                                    mode: 'ONCE',
-                                    lag_days: 5,
-                                    auto_latest: false
-                                });
-                                setShowJobModal(true);
-                            }}
+                            onClick={() => setShowBuilderModal(true)}
                             className="btn btn-primary"
                             style={{ display: 'flex', alignItems: 'center', gap: '6px', borderRadius: '6px', fontWeight: 600 }}
                         >
-                            <i className="fa fa-plus"></i>Tạo tác vụ tải CDS
+                            <i className="fa fa-magic"></i>Tạo tác vụ tải CDS (Wizard)
                         </button>
                     )}
                     <button
@@ -637,6 +660,17 @@ const AdminCdsRoute = () => {
                     </div>
                 </div>
             )}
+
+            {/* CDS Query Builder Modal */}
+            <CDSQueryBuilderModal
+                show={showBuilderModal}
+                onClose={() => setShowBuilderModal(false)}
+                credentials={credentials}
+                datasets={datasets}
+                catalog={catalog}
+                areaPresets={areaPresets}
+                onSave={handleSaveJobFromBuilder}
+            />
         </div>
     );
 };
