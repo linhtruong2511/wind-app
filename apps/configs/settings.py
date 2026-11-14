@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     "wind_events",
     "wind_energy",
     "wind_cds",
+    "tests",
 ]
 
 MIDDLEWARE = [
