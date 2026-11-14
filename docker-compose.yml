@@ -5,7 +5,7 @@ x-common-django:
   env_file:
     - .env
   volumes:
-    # - './src:/usr/src/project'  # Uncomment for local development
+    - './src:/usr/src/project'  # Uncomment for local development
     - statics:/mnt/volumes/statics
     - geoserver-data-dir:/geoserver_data/data
     - backup-restore:/backup_restore
@@ -147,9 +147,9 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-      # uncomment to enable remote connections to postgres
-      #ports:
-      #  - "5432:5432"
+    # uncomment to enable remote connections to postgres
+    # ports:
+    #   - "5432:5432"
 
   # Vanilla Redis service. This is needed by celery
   redis:
