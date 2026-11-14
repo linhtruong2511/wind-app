@@ -382,6 +382,28 @@ class CDSAPITest(TestCase):
             self.assertEqual(run_res.data["task_id"], "mock-task-id-123")
             mock_delay.assert_called_once_with(job_id)
 
+    @patch("wind_cds.views.run_cds_download_job.delay")
+    def test_job_create_with_run_immediately(self, mock_delay):
+        mock_task = MagicMock()
+        mock_task.id = "mock-immediate-task-456"
+        mock_delay.return_value = mock_task
+
+        res = self.client.post(
+            "/jobs/",
+            {
+                "name": "Immediate Job",
+                "credential": self.credential.id,
+                "dataset": self.dataset.id,
+                "mode": "ONCE",
+                "run_immediately": True,
+                "request_params": {"variable": ["10m_wind_speed"]},
+            },
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(res.data.get("task_id"), "mock-immediate-task-456")
+        mock_delay.assert_called_once()
+
     def test_job_sync_schedule_action(self):
         from wind_cds.models import CDSDownloadJob
 

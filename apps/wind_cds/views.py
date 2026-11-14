@@ -55,6 +55,25 @@ class CDSDownloadJobViewSet(viewsets.ModelViewSet):
     search_fields = ["name", "dataset_name"]
     ordering_fields = ["id", "name", "status", "last_run_at", "created_at"]
 
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = request.user if request.user.is_authenticated else None
+        job = serializer.save(created_by=user)
+        sync_periodic_task(job)
+
+        task_id = None
+        if request.data.get("run_immediately"):
+            async_result = run_cds_download_job.delay(job.id)
+            task_id = getattr(async_result, "id", str(async_result))
+
+        headers = self.get_success_headers(serializer.data)
+        data = dict(serializer.data)
+        if task_id:
+            data["task_id"] = task_id
+            data["status"] = "QUEUED"
+        return Response(data, status=status.HTTP_201_CREATED, headers=headers)
+
     def perform_create(self, serializer):
         user = self.request.user if self.request.user.is_authenticated else None
         job = serializer.save(created_by=user)
