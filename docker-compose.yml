@@ -72,6 +72,8 @@ services:
       - nginx-confd:/etc/nginx
       - nginx-certificates:/geonode-certificates
       - statics:/mnt/volumes/statics
+      - ./docker/nginx/sites-enabled/wind_be.conf:/etc/nginx/sites-enabled/wind_be.conf:ro
+      - ./src/geonode_project/static/wind_management/dist:/mnt/volumes/statics/static/wind_management/dist:ro
     restart: unless-stopped
     healthcheck:
       test: "if ps -o pid | grep -w 1 > /dev/null; then echo 'nginx running'; else exit 1;fi"
@@ -165,6 +167,73 @@ services:
       timeout: 3s
       retries: 3
       start_period: 5s
+
+  # Custom Backend cho Wind Apps
+  wind_be:
+    image: ${COMPOSE_PROJECT_NAME}/wind_be:latest
+    build:
+      context: ./
+      dockerfile: docker/wind_be/Dockerfile
+    container_name: wind_be4${COMPOSE_PROJECT_NAME}
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - DJANGO_SETTINGS_MODULE=configs.settings
+      - DATABASE_HOST=db
+      - DATABASE_PORT=5432
+      - WIND_DATABASE=${GEONODE_DATABASE:-geonode_project}
+      - POSTGRES_USER=${GEONODE_DATABASE_USER:-geonode_project}
+      - POSTGRES_PASSWORD=${GEONODE_DATABASE_PASSWORD}
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - PYTHONPATH=/usr/src/apps
+    volumes:
+      - './apps:/usr/src/apps'
+      - './src:/usr/src/src'
+      - './wind_rasters:/usr/src/wind_rasters'
+      - statics:/mnt/volumes/statics
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             gunicorn configs.wsgi:application --bind 0.0.0.0:8001 --workers 3 --timeout 300 --reload"
+
+  # Celery Worker cho Wind Apps
+  wind_worker:
+    image: ${COMPOSE_PROJECT_NAME}/wind_be:latest
+    build:
+      context: ./
+      dockerfile: docker/wind_be/Dockerfile
+    container_name: wind_worker4${COMPOSE_PROJECT_NAME}
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - DJANGO_SETTINGS_MODULE=configs.settings
+      - DATABASE_HOST=db
+      - DATABASE_PORT=5432
+      - WIND_DATABASE=${GEONODE_DATABASE:-geonode_project}
+      - POSTGRES_USER=${GEONODE_DATABASE_USER:-geonode_project}
+      - POSTGRES_PASSWORD=${GEONODE_DATABASE_PASSWORD}
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - PYTHONPATH=/usr/src/apps
+    volumes:
+      - './apps:/usr/src/apps'
+      - './wind_rasters:/usr/src/wind_rasters'
+      - statics:/mnt/volumes/statics
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      wind_be:
+        condition: service_started
+    command: celery -A configs worker -l INFO -c 2 -Q default
 
 volumes:
   statics:
