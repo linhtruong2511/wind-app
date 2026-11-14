@@ -79,6 +79,11 @@ export const runCDSJob = (id) => {
         .then(res => res.data);
 };
 
+export const getCDSJobsCatalog = () => {
+    return axios.get(`${BASE_URL}/cds-jobs/catalog/`, authConfig())
+        .then(res => res.data);
+};
+
 export const getCDSJobRuns = (params = {}) => {
     return axios.get(`${BASE_URL}/cds-runs/`, { ...authConfig(), params })
         .then(res => res.data.results || res.data || []);
