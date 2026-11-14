@@ -25,7 +25,7 @@ var/
 
 # Virtual environment
 venv/
-.venv/
+*.venv*
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -70,3 +70,7 @@ local_settings.py
 .vagrant/
 Vagrantfile
 /.env
+
+wind_rasters/
+apps/wind_rasters/
+
