@@ -19,6 +19,7 @@
 #########################################################################
 
 # Django settings for the GeoNode project.
+import ast
 import os
 
 # Load more settings from a file called local_settings.py if it exists
@@ -45,9 +46,34 @@ LOCAL_ROOT = os.path.abspath(os.path.dirname(__file__))
 
 WSGI_APPLICATION = "{}.wsgi.application".format(PROJECT_NAME)
 
-# Language code for this installation. All choices can be found here:
-# http://www.i18nguy.com/unicode/language-identifiers.html
-LANGUAGE_CODE = os.getenv("LANGUAGE_CODE", "en")
+TIME_ZONE = os.getenv("TIME_ZONE", "Asia/Ho_Chi_Minh")
+
+# Extend MapStore default supported languages to include Vietnamese
+MAPSTORE_DEFAULT_LANGUAGES = (
+    ("vi-vn", "Tiếng Việt"),
+    ("en-us", "English"),
+    ("de-de", "Deutsch"),
+    ("es-es", "Español"),
+    ("fr-fr", "Français"),
+    ("it-it", "Italiano"),
+)
+
+try:
+    _raw_langs = os.getenv("LANGUAGES")
+    if _raw_langs:
+        _parsed_langs = ast.literal_eval(_raw_langs.encode("utf-8", "surrogateescape").decode("utf-8", "replace"))
+        LANGUAGES = tuple(
+            (k, v) for k, v in dict(MAPSTORE_DEFAULT_LANGUAGES).items() if any(m in k for m in dict(_parsed_langs).keys())
+        )
+    else:
+        LANGUAGES = (("vi-vn", "Tiếng Việt"), ("en-us", "English"))
+except Exception:
+    LANGUAGES = (("vi-vn", "Tiếng Việt"), ("en-us", "English"))
+
+PROFILE_LANGUAGE_CHOICES = tuple((k.split("-")[0], v) for k, v in LANGUAGES)
+
+# Language code for this installation.
+LANGUAGE_CODE = os.getenv("LANGUAGE_CODE", "vi-vn")
 
 if PROJECT_NAME not in INSTALLED_APPS:
     INSTALLED_APPS += (PROJECT_NAME,)
