@@ -17,7 +17,12 @@ from wind_cds.views import (
     CDSDownloadJobViewSet,
     CDSJobRunViewSet,
 )
-from wind_core.views import DatasetViewSet
+from wind_core.views import (
+    DatasetAccessPolicyViewSet,
+    DatasetVariableViewSet,
+    DatasetViewSet,
+    IngestionLogViewSet,
+)
 from wind_energy.views import (
     AnalysisJobViewSet,
     ExtremeEventViewSet,
@@ -36,6 +41,9 @@ router = DefaultRouter()
 
 # wind_core micro-app
 router.register(r"datasets", DatasetViewSet, basename="dataset")
+router.register(r"dataset-variables", DatasetVariableViewSet, basename="dataset-variable")
+router.register(r"dataset-access-policies", DatasetAccessPolicyViewSet, basename="dataset-access-policy")
+router.register(r"ingestion-logs", IngestionLogViewSet, basename="ingestion-log")
 
 # wind_stations micro-app
 router.register(r"stations", StationViewSet, basename="station")

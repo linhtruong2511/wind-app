@@ -27,7 +27,7 @@ from wind_core.serializers import (
     SystemMetricSerializer,
     UserQueryHistorySerializer,
 )
-from wind_core.utils import StandardResultsSetPagination
+from wind_core.utils import IsAdminUserOrReadOnly, StandardResultsSetPagination
 
 
 def get_raster_granule_model():
@@ -37,10 +37,10 @@ def get_raster_granule_model():
         return None
 
 
-class DatasetViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Dataset.objects.filter(is_active=True).order_by("id")
+class DatasetViewSet(viewsets.ModelViewSet):
+    queryset = Dataset.objects.all().order_by("id")
     serializer_class = DatasetSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    permission_classes = [IsAdminUserOrReadOnly]
     pagination_class = StandardResultsSetPagination
     filter_backends = [filters.DjangoFilterBackend]
     filterset_fields = ["category"]
@@ -136,3 +136,31 @@ class DatasetViewSet(viewsets.ReadOnlyModelViewSet):
         if is_component is not None:
             variables = variables.filter(is_component=is_component.lower() in ("1", "true"))
         return Response({"variables": DatasetVariableSerializer(variables, many=True).data})
+
+
+class DatasetVariableViewSet(viewsets.ModelViewSet):
+    queryset = DatasetVariable.objects.all().order_by("id")
+    serializer_class = DatasetVariableSerializer
+    permission_classes = [IsAdminUserOrReadOnly]
+    pagination_class = StandardResultsSetPagination
+    filter_backends = [filters.DjangoFilterBackend]
+    filterset_fields = ["dataset", "is_component"]
+
+
+class DatasetAccessPolicyViewSet(viewsets.ModelViewSet):
+    queryset = DatasetAccessPolicy.objects.all().order_by("id")
+    serializer_class = DatasetAccessPolicySerializer
+    permission_classes = [IsAdminUserOrReadOnly]
+    pagination_class = StandardResultsSetPagination
+    filter_backends = [filters.DjangoFilterBackend]
+    filterset_fields = ["dataset", "group", "permission"]
+
+
+class IngestionLogViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = IngestionLog.objects.all().order_by("-started_at")
+    serializer_class = IngestionLogSerializer
+    permission_classes = [IsAdminUserOrReadOnly]
+    pagination_class = StandardResultsSetPagination
+    filter_backends = [filters.DjangoFilterBackend]
+    filterset_fields = ["dataset", "status"]
+
