@@ -21,6 +21,12 @@ const IMPORT_TEMPLATE_HEADER = [
     'station_code', 'obs_time', 'wind_speed', 'wind_dir', 'temp_2m', 'temp_min', 'temp_max',
     'humidity', 'pressure', 'rain_06h', 'rain_24h'
 ];
+const STATION_TYPE_LABELS = {
+    SURFACE: 'Bề mặt',
+    MET_MAST: 'Cột khí tượng',
+    BUOY: 'Phao biển'
+};
+
 const IMPORT_TEMPLATE_ROWS = [
     ['WS001', '2025-01-01 00:00:00', '3.5', '45', '18.2', '16.1', '20.4', '78', '1012.3', '0', '0'],
     ['WS001', '2025-01-01 01:00:00', '4.1', '50', '17.8', '15.9', '19.6', '80', '1012.1', '0', '0'],
@@ -125,7 +131,7 @@ const AdminStationsRoute = () => {
             setPartitions(parts);
             setLakeLoading(false);
         }).catch(err => {
-            setFeedback({ type: 'danger', message: 'Lỗi nạp kho dữ liệu: ' + (err.response?.data?.detail || err.message) });
+            setFeedback({ type: 'danger', message: 'Lỗi tải dữ liệu quan trắc: ' + (err.response?.data?.detail || err.message) });
             setLakeLoading(false);
         });
     };
@@ -239,7 +245,7 @@ const AdminStationsRoute = () => {
     };
 
     const handleSyncFromDb = () => {
-        if (!window.confirm('Hệ thống sẽ sao chép toàn bộ số liệu từ bảng PostgreSQL sang Kho tệp Parquet. Tiếp tục?')) return;
+        if (!window.confirm('Hệ thống sẽ sao chép toàn bộ số liệu từ cơ sở dữ liệu sang kho dữ liệu. Tiếp tục?')) return;
         setSyncLoading(true);
         syncDataLakeFromDb().then(res => {
             setFeedback({ type: 'success', message: res.message });
@@ -252,7 +258,7 @@ const AdminStationsRoute = () => {
     };
 
     const handleDeletePartition = (stationCode, year) => {
-        if (!window.confirm(`Bạn có chắc muốn xóa tệp phân vùng của trạm ${stationCode} năm ${year}?`)) return;
+        if (!window.confirm(`Bạn có chắc muốn xóa dữ liệu của trạm ${stationCode} năm ${year}?`)) return;
         deleteDataLakePartition(stationCode, year).then(res => {
             setFeedback({ type: 'success', message: res.message });
             loadDataLake();
@@ -289,7 +295,7 @@ const AdminStationsRoute = () => {
             setSqlResult(res);
             setAnalyticsLoading(false);
         }).catch(err => {
-            setFeedback({ type: 'danger', message: 'Lỗi truy vấn SQL: ' + (err.response?.data?.error || err.message) });
+            setFeedback({ type: 'danger', message: 'Lỗi truy vấn: ' + (err.response?.data?.error || err.message) });
             setAnalyticsLoading(false);
         });
     };
@@ -300,10 +306,10 @@ const AdminStationsRoute = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                 <div>
                     <h2 style={{ fontSize: '24px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
-                        Quản lý Trạm đo & Kho Dữ Liệu Quan Trắc
+                        Quản lý trạm đo và dữ liệu quan trắc
                     </h2>
                     <p style={{ color: '#64748b', fontSize: '14px', margin: '4px 0 0 0' }}>
-                        Quản lý danh sách trạm quan trắc, nạp số liệu lớn vào Kho Parquet siêu nén (DuckDB Data Lake), theo dõi dung lượng và phân tích tức thì.
+                        Quản lý danh sách trạm quan trắc, nạp số liệu lớn vào kho dữ liệu nén, theo dõi dung lượng và phân tích tức thì.
                     </p>
                 </div>
                 <div style={{ display: 'flex', gap: '10px' }}>
@@ -336,10 +342,10 @@ const AdminStationsRoute = () => {
                                 disabled={syncLoading}
                                 className="btn btn-default"
                                 style={{ display: 'flex', alignItems: 'center', gap: '6px', borderRadius: '6px', fontWeight: 600 }}
-                                title="Chuyển toàn bộ số liệu hiện có trong bảng PostgreSQL sang Kho Parquet"
+                                title="Chuyển toàn bộ số liệu hiện có từ cơ sở dữ liệu sang kho dữ liệu"
                             >
                                 <i className={`fa fa-refresh ${syncLoading ? 'fa-spin' : ''}`}></i>
-                                {syncLoading ? 'Đang đồng bộ...' : 'Đồng bộ từ CSDL'}
+                                {syncLoading ? 'Đang đồng bộ...' : 'Đồng bộ từ cơ sở dữ liệu'}
                             </button>
                             <button
                                 onClick={() => setShowExportModal(true)}
@@ -391,7 +397,7 @@ const AdminStationsRoute = () => {
                         cursor: 'pointer'
                     }}
                 >
-                    <i className="fa fa-database" style={{ marginRight: '8px' }}></i>Kho Dữ Liệu Parquet (DuckDB)
+                    <i className="fa fa-database" style={{ marginRight: '8px' }}></i>Kho dữ liệu
                 </button>
                 <button
                     onClick={() => setActiveTab('import')}
@@ -406,7 +412,7 @@ const AdminStationsRoute = () => {
                         cursor: 'pointer'
                     }}
                 >
-                    <i className="fa fa-upload" style={{ marginRight: '8px' }}></i>Nạp số liệu Excel / CSV
+                    <i className="fa fa-upload" style={{ marginRight: '8px' }}></i>Nạp số liệu
                 </button>
                 <button
                     onClick={() => setActiveTab('analytics')}
@@ -421,7 +427,7 @@ const AdminStationsRoute = () => {
                         cursor: 'pointer'
                     }}
                 >
-                    <i className="fa fa-area-chart" style={{ marginRight: '8px' }}></i>Phân tích & SQL DuckDB
+                    <i className="fa fa-area-chart" style={{ marginRight: '8px' }}></i>Phân tích và truy vấn
                 </button>
             </div>
 
@@ -453,7 +459,7 @@ const AdminStationsRoute = () => {
                                     <th style={{ padding: '12px 14px' }}>Tên trạm</th>
                                     <th style={{ padding: '12px 14px' }}>Loại trạm</th>
                                     <th style={{ padding: '12px 14px' }}>Độ cao (m)</th>
-                                    <th style={{ padding: '12px 14px' }}>Tọa độ (Kinh độ, Vĩ độ)</th>
+                                    <th style={{ padding: '12px 14px' }}>Tọa độ</th>
                                     <th style={{ padding: '12px 14px' }}>Trạng thái</th>
                                     <th style={{ padding: '12px 14px', textAlign: 'right' }}>Thao tác</th>
                                 </tr>
@@ -470,7 +476,7 @@ const AdminStationsRoute = () => {
                                         <tr key={s.id}>
                                             <td style={{ padding: '12px 14px', fontWeight: 600, color: '#0284c7' }}>{s.station_code}</td>
                                             <td style={{ padding: '12px 14px', fontWeight: 600 }}>{s.name}</td>
-                                            <td style={{ padding: '12px 14px' }}>{s.station_type || 'Bề mặt'}</td>
+                                            <td style={{ padding: '12px 14px' }}>{STATION_TYPE_LABELS[s.station_type] || 'Bề mặt'}</td>
                                             <td style={{ padding: '12px 14px' }}>{s.elevation ?? '-'}</td>
                                             <td style={{ padding: '12px 14px', fontFamily: 'monospace' }}>
                                                 {s.lon ? `${s.lon.toFixed(4)}, ${s.lat.toFixed(4)}` : '-'}
@@ -527,28 +533,28 @@ const AdminStationsRoute = () => {
                     {/* KPI Cards */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '20px' }}>
                         <div style={{ background: '#ffffff', borderRadius: '12px', padding: '18px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
-                            <div style={{ fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>Dung lượng Kho Parquet</div>
+                            <div style={{ fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>Dung lượng kho dữ liệu</div>
                             <div style={{ fontSize: '24px', fontWeight: 700, color: '#0f172a', marginTop: '6px' }}>
                                 {lakeOverview ? lakeOverview.total_size_formatted : '-'}
                             </div>
                             <div style={{ fontSize: '11px', color: '#10b981', marginTop: '4px', fontWeight: 600 }}>
                                 <i className="fa fa-arrow-down" style={{ marginRight: '4px' }}></i>
-                                Tiết kiệm ~{lakeOverview ? lakeOverview.saved_storage_estimate : '0 B'} so với RDBMS
+                                Tiết kiệm khoảng {lakeOverview ? lakeOverview.saved_storage_estimate : '0 B'} so với cơ sở dữ liệu thông thường
                             </div>
                         </div>
 
                         <div style={{ background: '#ffffff', borderRadius: '12px', padding: '18px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
-                            <div style={{ fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>Tổng Số Bản Ghi Tích Lũy</div>
+                            <div style={{ fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>Tổng số bản ghi tích lũy</div>
                             <div style={{ fontSize: '24px', fontWeight: 700, color: '#0284c7', marginTop: '6px' }}>
                                 {lakeOverview ? lakeOverview.total_records.toLocaleString() : '-'}
                             </div>
                             <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>
-                                Trên {lakeOverview ? lakeOverview.total_files : 0} tệp phân vùng Parquet
+                                Trên {lakeOverview ? lakeOverview.total_files : 0} tệp dữ liệu
                             </div>
                         </div>
 
                         <div style={{ background: '#ffffff', borderRadius: '12px', padding: '18px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
-                            <div style={{ fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>Số Trạm Có Dữ Liệu</div>
+                            <div style={{ fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>Số trạm có dữ liệu</div>
                             <div style={{ fontSize: '24px', fontWeight: 700, color: '#10b981', marginTop: '6px' }}>
                                 {lakeOverview ? lakeOverview.total_stations : '-'}
                             </div>
@@ -558,12 +564,12 @@ const AdminStationsRoute = () => {
                         </div>
 
                         <div style={{ background: '#ffffff', borderRadius: '12px', padding: '18px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
-                            <div style={{ fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>Khoảng Thời Gian Đo</div>
+                            <div style={{ fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>Khoảng thời gian đo</div>
                             <div style={{ fontSize: '13px', fontWeight: 600, color: '#334155', marginTop: '8px' }}>
                                 {lakeOverview?.min_date ? new Date(lakeOverview.min_date).toLocaleDateString('vi-VN') : 'Chưa có'} &rarr; {lakeOverview?.max_date ? new Date(lakeOverview.max_date).toLocaleDateString('vi-VN') : 'Chưa có'}
                             </div>
                             <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>
-                                Chu kỳ quan trắc thời gian thực
+Theo chu kỳ quan trắc
                             </div>
                         </div>
                     </div>
@@ -572,7 +578,7 @@ const AdminStationsRoute = () => {
                     <div style={{ background: '#ffffff', borderRadius: '12px', padding: '20px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
                             <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
-                                Danh mục Tệp Phân Vùng Parquet (Partition Catalog)
+                                Danh mục dữ liệu theo trạm và năm
                             </h3>
                             <div style={{ display: 'flex', gap: '10px' }}>
                                 <select
@@ -583,12 +589,12 @@ const AdminStationsRoute = () => {
                                 >
                                     <option value="">-- Tất cả trạm --</option>
                                     {stations.map(s => (
-                                        <option key={s.id} value={s.station_code}>{s.name} ({s.station_code})</option>
+                                        <option key={s.id} value={s.station_code}>{s.name}</option>
                                     ))}
                                 </select>
                                 <input
                                     type="number"
-                                    placeholder="Năm (VD: 2025)"
+                                    placeholder="Năm, ví dụ: 2025"
                                     value={lakeYearFilter}
                                     onChange={e => setLakeYearFilter(e.target.value)}
                                     className="form-control"
@@ -618,7 +624,7 @@ const AdminStationsRoute = () => {
                                     {partitions.length === 0 ? (
                                         <tr>
                                             <td colSpan="8" style={{ textAlign: 'center', padding: '30px', color: '#94a3b8' }}>
-                                                {lakeLoading ? 'Đang tải danh mục kho...' : 'Chưa có tệp phân vùng nào trong kho. Hãy nạp file ở tab "Nạp số liệu" hoặc nhấn "Đồng bộ từ CSDL".'}
+                                                {lakeLoading ? 'Đang tải danh mục kho...' : 'Chưa có dữ liệu trong kho. Hãy nạp tệp ở mục "Nạp số liệu" hoặc bấm "Đồng bộ từ cơ sở dữ liệu".'}
                                             </td>
                                         </tr>
                                     ) : (
@@ -653,7 +659,7 @@ const AdminStationsRoute = () => {
                                                         href={getDownloadLakeDataUrl(p.station_code, p.year, 'parquet')}
                                                         className="btn btn-xs btn-default"
                                                         style={{ marginRight: '6px' }}
-                                                        title="Tải tệp Parquet gốc (siêu nhẹ)"
+                                                        title="Tải tệp Parquet gốc"
                                                     >
                                                         <i className="fa fa-file-code-o"></i> Parquet
                                                     </a>
@@ -668,7 +674,7 @@ const AdminStationsRoute = () => {
                                                     <button
                                                         onClick={() => handleDeletePartition(p.station_code, p.year)}
                                                         className="btn btn-xs btn-danger"
-                                                        title="Xóa tệp phân vùng này"
+                                                        title="Xóa dữ liệu này"
                                                     >
                                                         <i className="fa fa-trash"></i>
                                                     </button>
@@ -687,16 +693,16 @@ const AdminStationsRoute = () => {
             {activeTab === 'import' && (
                 <div style={{ background: '#ffffff', borderRadius: '12px', padding: '24px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
                     <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', marginTop: 0, marginBottom: '6px' }}>
-                        Trung Tâm Nạp Dữ Liệu Quan Trắc Hàng Loạt
+                        Nạp dữ liệu quan trắc hàng loạt
                     </h3>
                     <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '20px' }}>
-                        Hỗ trợ nạp tệp bảng tính Excel (.xlsx, .xls) hoặc tệp CSV (.csv). Dữ liệu sẽ tự động được làm sạch, kiểm tra trùng lặp và lưu trữ tối ưu.
+                        Hỗ trợ tệp Excel hoặc CSV. Dữ liệu sẽ được tự động làm sạch, kiểm tra trùng lặp và lưu trữ.
                     </p>
 
                     {/* Lựa chọn kho lưu trữ đích */}
                     <div style={{ marginBottom: '20px', padding: '16px', borderRadius: '8px', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
                         <label style={{ fontSize: '13px', fontWeight: 700, color: '#1e293b', marginBottom: '10px', display: 'block' }}>
-                            Chọn Phương thức Lưu trữ Đích:
+                            Chọn nơi lưu trữ dữ liệu:
                         </label>
                         <div style={{ display: 'flex', gap: '24px' }}>
                             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: '#0284c7' }}>
@@ -707,7 +713,7 @@ const AdminStationsRoute = () => {
                                     checked={importTarget === 'lake'}
                                     onChange={() => setImportTarget('lake')}
                                 />
-                                Kho Parquet siêu nén (Khuyến nghị cho dữ liệu lớn)
+                                Kho dữ liệu nén, khuyến nghị cho dữ liệu lớn
                             </label>
                             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: '#64748b' }}>
                                 <input
@@ -717,13 +723,13 @@ const AdminStationsRoute = () => {
                                     checked={importTarget === 'db'}
                                     onChange={() => setImportTarget('db')}
                                 />
-                                Cơ sở dữ liệu quan hệ (PostgreSQL)
+                                Cơ sở dữ liệu
                             </label>
                         </div>
                         <p style={{ fontSize: '12px', color: '#64748b', margin: '8px 0 0 0' }}>
                             {importTarget === 'lake'
-                                ? 'Dữ liệu được nén theo cột bằng Zstandard, chia tệp theo trạm/năm, ghi nối tiếp tức thì không gây khóa database hay chậm hệ thống.'
-                                : 'Dữ liệu được ghi thẳng vào bảng wind_observations của PostgreSQL bằng bulk_create.'}
+                                ? 'Dữ liệu được nén theo cột, chia tệp theo trạm và năm, ghi nhanh mà không làm chậm hệ thống.'
+                                : 'Dữ liệu được ghi trực tiếp vào cơ sở dữ liệu.'}
                         </p>
                     </div>
 
@@ -742,7 +748,7 @@ const AdminStationsRoute = () => {
                                     Chọn tệp CSV hoặc Excel chứa số liệu quan trắc
                                 </div>
                                 <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px' }}>
-                                    Tệp cần tối thiểu 2 cột: <code>station_code</code> và <code>obs_time</code> (YYYY-MM-DD HH:MM:SS)
+                                    Tệp cần có tối thiểu hai cột <code>station_code</code> và <code>obs_time</code>, thời gian theo định dạng YYYY-MM-DD HH:MM:SS.
                                 </div>
                             </div>
                         )}
@@ -774,7 +780,7 @@ const AdminStationsRoute = () => {
                             style={{ borderRadius: '6px', fontWeight: 600 }}
                         >
                             <i className="fa fa-download" style={{ marginRight: '6px' }}></i>
-                            Tải tệp mẫu (.csv)
+                            Tải tệp mẫu
                         </button>
                         <button
                             onClick={handleDryRun}
@@ -783,7 +789,7 @@ const AdminStationsRoute = () => {
                             style={{ borderRadius: '6px', fontWeight: 600 }}
                         >
                             <i className={`fa fa-check ${dryRunLoading ? 'fa-spin' : ''}`} style={{ marginRight: '6px' }}></i>
-                            {dryRunLoading ? 'Đang kiểm tra...' : 'Kiểm tra cấu trúc (Dry-run)'}
+                            {dryRunLoading ? 'Đang kiểm tra...' : 'Kiểm tra cấu trúc'}
                         </button>
                         <button
                             onClick={handleRealImport}
@@ -847,7 +853,7 @@ const AdminStationsRoute = () => {
                                     checked={analyticsMode === 'wind_rose'}
                                     onChange={() => setAnalyticsMode('wind_rose')}
                                 />
-                                <i className="fa fa-compass"></i> Phân tích Hoa Gió Siêu Tốc (Wind Rose)
+                                <i className="fa fa-compass"></i> Hoa gió
                             </label>
                             <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '14px', fontWeight: analyticsMode === 'sql' ? 700 : 500, color: analyticsMode === 'sql' ? '#0284c7' : '#64748b' }}>
                                 <input
@@ -856,7 +862,7 @@ const AdminStationsRoute = () => {
                                     checked={analyticsMode === 'sql'}
                                     onChange={() => setAnalyticsMode('sql')}
                                 />
-                                <i className="fa fa-code"></i> DuckDB SQL Playground (Truy vấn tùy biến)
+                                <i className="fa fa-code"></i> Truy vấn tùy biến
                             </label>
                         </div>
 
@@ -873,7 +879,7 @@ const AdminStationsRoute = () => {
                                         >
                                             <option value="">-- Tất cả trạm trong kho --</option>
                                             {stations.map(s => (
-                                                <option key={s.id} value={s.station_code}>{s.name} ({s.station_code})</option>
+                                                <option key={s.id} value={s.station_code}>{s.name}</option>
                                             ))}
                                         </select>
                                     </div>
@@ -905,7 +911,7 @@ const AdminStationsRoute = () => {
                                             style={{ width: '100%', borderRadius: '6px', fontWeight: 600 }}
                                         >
                                             <i className={`fa fa-bolt ${analyticsLoading ? 'fa-spin' : ''}`} style={{ marginRight: '6px' }}></i>
-                                            {analyticsLoading ? 'Đang tính toán...' : 'Phân tích Hoa Gió (DuckDB)'}
+                                            {analyticsLoading ? 'Đang tính toán...' : 'Phân tích hoa gió'}
                                         </button>
                                     </div>
                                 </div>
@@ -918,7 +924,7 @@ const AdminStationsRoute = () => {
                                                 <div style={{ fontSize: '18px', fontWeight: 700, color: '#0f172a' }}>{windRoseResult.total_records.toLocaleString()}</div>
                                             </div>
                                             <div style={{ padding: '12px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                                                <div style={{ fontSize: '11px', color: '#64748b' }}>Vận tốc gió TB</div>
+                                                <div style={{ fontSize: '11px', color: '#64748b' }}>Tốc độ gió trung bình</div>
                                                 <div style={{ fontSize: '18px', fontWeight: 700, color: '#0284c7' }}>{windRoseResult.avg_wind_speed} m/s</div>
                                             </div>
                                             <div style={{ padding: '12px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
@@ -926,14 +932,14 @@ const AdminStationsRoute = () => {
                                                 <div style={{ fontSize: '18px', fontWeight: 700, color: '#10b981' }}>{windRoseResult.calm_percent}%</div>
                                             </div>
                                             <div style={{ padding: '12px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                                                <div style={{ fontSize: '11px', color: '#64748b' }}>Phân vị P50 / P90 / P99</div>
+                                                <div style={{ fontSize: '11px', color: '#64748b' }}>Phân vị 50, 90, 99</div>
                                                 <div style={{ fontSize: '14px', fontWeight: 700, color: '#475569' }}>
                                                     {windRoseResult.distribution?.percentiles?.p50} / {windRoseResult.distribution?.percentiles?.p90} / {windRoseResult.distribution?.percentiles?.p99} m/s
                                                 </div>
                                             </div>
                                         </div>
 
-                                        <h4 style={{ fontSize: '14px', fontWeight: 700, marginBottom: '10px' }}>Ma trận Tần suất Hoa Gió (16 Hướng x 6 Cấp Tốc Độ)</h4>
+                                        <h4 style={{ fontSize: '14px', fontWeight: 700, marginBottom: '10px' }}>Tần suất hoa gió theo 16 hướng và 6 cấp tốc độ</h4>
                                         <div className="table-responsive">
                                             <table className="table table-bordered table-condensed" style={{ fontSize: '12px', textAlign: 'center' }}>
                                                 <thead>
@@ -977,14 +983,14 @@ const AdminStationsRoute = () => {
                                         className="btn btn-default btn-xs"
                                         style={{ borderRadius: '4px' }}
                                     >
-                                        Top 10 mốc gió giật mạnh nhất
+                                        Mười mốc gió mạnh nhất
                                     </button>
                                     <button
                                         onClick={() => setCustomSql("SELECT hour(obs_time) as h, round(avg(wind_speed), 2) as avg_speed, round(avg(temp_2m), 2) as avg_temp FROM observations GROUP BY 1 ORDER BY 1")}
                                         className="btn btn-default btn-xs"
                                         style={{ borderRadius: '4px' }}
                                     >
-                                        Chu kỳ 24h trong ngày (Diurnal)
+                                        Biến thiên theo giờ trong ngày
                                     </button>
                                     <button
                                         onClick={() => setCustomSql("SELECT year(obs_time) as yr, month(obs_time) as mo, round(avg(wind_speed), 2) as avg_spd, round(avg(rain_24h), 2) as avg_rain FROM observations GROUP BY 1, 2 ORDER BY 1, 2")}
@@ -1006,7 +1012,7 @@ const AdminStationsRoute = () => {
 
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                     <span style={{ fontSize: '12px', color: '#64748b' }}>
-                                        * Lưu ý: Tên bảng trong truy vấn là <code>observations</code> (tự động ánh xạ tới toàn bộ kho tệp Parquet). Chỉ hỗ trợ câu lệnh SELECT.
+                                        Lưu ý: tên bảng trong truy vấn là <code>observations</code>, tự động liên kết tới toàn bộ kho dữ liệu. Chỉ hỗ trợ câu lệnh SELECT.
                                     </span>
                                     <button
                                         onClick={handleRunCustomSql}
@@ -1015,7 +1021,7 @@ const AdminStationsRoute = () => {
                                         style={{ borderRadius: '6px', fontWeight: 600 }}
                                     >
                                         <i className={`fa fa-play ${analyticsLoading ? 'fa-spin' : ''}`} style={{ marginRight: '6px' }}></i>
-                                        {analyticsLoading ? 'Đang thực thi...' : 'Chạy truy vấn SQL'}
+                                        {analyticsLoading ? 'Đang thực thi...' : 'Chạy truy vấn'}
                                     </button>
                                 </div>
 
@@ -1028,7 +1034,7 @@ const AdminStationsRoute = () => {
                                             </span>
                                             {sqlResult.total_rows > 500 && (
                                                 <span style={{ fontSize: '12px', color: '#64748b' }}>
-                                                    (Hiển thị trước 500 dòng)
+                                                    Hiển thị 500 dòng đầu
                                                 </span>
                                             )}
                                         </div>
@@ -1063,7 +1069,7 @@ const AdminStationsRoute = () => {
                 <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 100000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <div style={{ background: '#ffffff', borderRadius: '12px', width: '480px', maxWidth: '90%', padding: '24px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)' }}>
                         <h3 style={{ marginTop: 0, marginBottom: '18px', fontSize: '18px', fontWeight: 700, color: '#0f172a' }}>
-                            Xuất Dữ Liệu Từ Kho Parquet
+                            Xuất dữ liệu từ kho
                         </h3>
                         <div>
                             <div className="form-group">
@@ -1075,7 +1081,7 @@ const AdminStationsRoute = () => {
                                 >
                                     <option value="">-- Tất cả các trạm --</option>
                                     {stations.map(s => (
-                                        <option key={s.id} value={s.station_code}>{s.name} ({s.station_code})</option>
+                                        <option key={s.id} value={s.station_code}>{s.name}</option>
                                     ))}
                                 </select>
                             </div>
@@ -1106,8 +1112,8 @@ const AdminStationsRoute = () => {
                                     onChange={e => setExportForm({ ...exportForm, format: e.target.value })}
                                     className="form-control"
                                 >
-                                    <option value="csv">Bảng tính CSV (.csv)</option>
-                                    <option value="parquet">Tệp Parquet nguyên bản (.parquet)</option>
+                                    <option value="csv">Bảng tính CSV</option>
+                                    <option value="parquet">Parquet gốc</option>
                                 </select>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
@@ -1120,7 +1126,7 @@ const AdminStationsRoute = () => {
                                     onClick={() => setShowExportModal(false)}
                                     className="btn btn-success"
                                 >
-                                    <i className="fa fa-download" style={{ marginRight: '6px' }}></i> Bắt đầu Tải về
+                                    <i className="fa fa-download" style={{ marginRight: '6px' }}></i> Bắt đầu tải về
                                 </a>
                             </div>
                         </div>
@@ -1133,7 +1139,7 @@ const AdminStationsRoute = () => {
                 <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 100000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <div style={{ background: '#ffffff', borderRadius: '12px', width: '560px', maxWidth: '90%', padding: '24px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)' }}>
                         <h3 style={{ marginTop: 0, marginBottom: '18px', fontSize: '18px', fontWeight: 700, color: '#0f172a' }}>
-                            {stationForm.id ? 'Chỉnh sửa trạm quan trắc' : 'Thêm trạm quan trắc mới'}
+                            {stationForm.id ? 'Chỉnh sửa trạm quan trắc' : 'Thêm trạm quan trắc'}
                         </h3>
                         <form onSubmit={handleSaveStation}>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
@@ -1146,7 +1152,7 @@ const AdminStationsRoute = () => {
                                         value={stationForm.station_code}
                                         onChange={e => setStationForm({ ...stationForm, station_code: e.target.value })}
                                         required
-                                        placeholder="VD: PHU_QUY"
+                                        placeholder="Ví dụ: PHU_QUY"
                                     />
                                 </div>
                                 <div className="form-group">
@@ -1157,7 +1163,7 @@ const AdminStationsRoute = () => {
                                         value={stationForm.name}
                                         onChange={e => setStationForm({ ...stationForm, name: e.target.value })}
                                         required
-                                        placeholder="VD: Trạm Khí tượng Phú Quý"
+                                        placeholder="Ví dụ: Trạm khí tượng Phú Quý"
                                     />
                                 </div>
                             </div>
@@ -1165,9 +1171,9 @@ const AdminStationsRoute = () => {
                                 <div className="">
                                     <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Loại trạm</label>
                                     <select className="form-control" value={stationForm.station_type} onChange={e => setStationForm({ ...stationForm, station_type: e.target.value })}>
-                                        <option value="SURFACE">SURFACE</option>
-                                        <option value="MET_MAST">MET_MAST</option>
-                                        <option value="BUOY">BUOY</option>
+                                        <option value="SURFACE">Bề mặt</option>
+                                        <option value="MET_MAST">Cột khí tượng</option>
+                                        <option value="BUOY">Phao biển</option>
                                     </select>
                                 </div>
                                 <div className="form-group">
@@ -1178,13 +1184,13 @@ const AdminStationsRoute = () => {
                                         className="form-control"
                                         value={stationForm.elevation}
                                         onChange={e => setStationForm({ ...stationForm, elevation: e.target.value })}
-                                        placeholder="VD: 15.5"
+                                        placeholder="Ví dụ: 15.5"
                                     />
                                 </div>
                             </div>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
                                 <div className="form-group">
-                                    <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Kinh độ (Longitude) *</label>
+                                    <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Kinh độ *</label>
                                     <input
                                         type="number"
                                         step="0.000001"
@@ -1192,11 +1198,11 @@ const AdminStationsRoute = () => {
                                         value={stationForm.lon}
                                         onChange={e => setStationForm({ ...stationForm, lon: e.target.value })}
                                         required
-                                        placeholder="VD: 108.932"
+                                        placeholder="Ví dụ: 108.932"
                                     />
                                 </div>
                                 <div className="form-group">
-                                    <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Vĩ độ (Latitude) *</label>
+                                    <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Vĩ độ *</label>
                                     <input
                                         type="number"
                                         step="0.000001"
@@ -1204,7 +1210,7 @@ const AdminStationsRoute = () => {
                                         value={stationForm.lat}
                                         onChange={e => setStationForm({ ...stationForm, lat: e.target.value })}
                                         required
-                                        placeholder="VD: 10.518"
+                                        placeholder="Ví dụ: 10.518"
                                     />
                                 </div>
                             </div>
@@ -1214,7 +1220,7 @@ const AdminStationsRoute = () => {
                                         type="checkbox"
                                         checked={stationForm.is_active}
                                         onChange={e => setStationForm({ ...stationForm, is_active: e.target.checked })}
-                                    /> Trạm đang vận hành hoạt động
+                                    /> Đang vận hành
                                 </label>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>

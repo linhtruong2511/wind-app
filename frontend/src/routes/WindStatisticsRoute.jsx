@@ -183,7 +183,7 @@ const WindStatisticsRoute = ({ history }) => {
                             </Button>
                         </div>
                         <h2 style={{ marginTop: '15px', marginBottom: '5px', color: '#0f172a', fontWeight: 700 }}>
-                            Trung Tâm Thống Kê & Phân Tích Dữ Liệu Khí Tượng Gió
+                            Thống kê và phân tích dữ liệu khí tượng gió
                         </h2>
                         <p style={{ color: '#64748b', fontSize: '13px', margin: 0 }}>
                             Phân tích chuyên sâu mạng lưới trạm quan trắc, so sánh chuỗi thời gian, biểu đồ hoa gió 16 hướng và bảng xếp hạng cực trị.
@@ -224,7 +224,7 @@ const WindStatisticsRoute = ({ history }) => {
                             id="wind-statistics-tabs"
                             style={{ marginBottom: '15px' }}
                         >
-                            <Tab eventKey="overview" title={<span><i className="fa fa-dashboard" /> Tổng Quan & Xếp Hạng</span>}>
+                            <Tab eventKey="overview" title={<span><i className="fa fa-dashboard" /> Tổng quan và xếp hạng</span>}>
                                 <div style={{ paddingTop: '15px' }}>
                                     <WindOverviewTab
                                         overviewData={overviewData}
@@ -236,7 +236,7 @@ const WindStatisticsRoute = ({ history }) => {
                                 </div>
                             </Tab>
 
-                            <Tab eventKey="comparison" title={<span><i className="fa fa-line-chart" /> So Sánh Đa Trạm ({selectedStationIds.length})</span>}>
+                            <Tab eventKey="comparison" title={<span><i className="fa fa-line-chart" /> So sánh nhiều trạm ({selectedStationIds.length})</span>}>
                                 <div style={{ paddingTop: '15px' }}>
                                     <WindMultiStationTab
                                         compareData={compareData}
@@ -250,7 +250,7 @@ const WindStatisticsRoute = ({ history }) => {
                                 </div>
                             </Tab>
 
-                            <Tab eventKey="wind_rose" title={<span><i className="fa fa-compass" /> Trắc Gió & Hoa Gió</span>}>
+                            <Tab eventKey="wind_rose" title={<span><i className="fa fa-compass" /> Hoa gió</span>}>
                                 <div style={{ paddingTop: '15px' }}>
                                     <WindRoseTab
                                         windRoseData={windRoseData}
@@ -262,7 +262,7 @@ const WindStatisticsRoute = ({ history }) => {
                                 </div>
                             </Tab>
 
-                            <Tab eventKey="report" title={<span><i className="fa fa-table" /> Bảng Số Liệu & Báo Cáo</span>}>
+                            <Tab eventKey="report" title={<span><i className="fa fa-table" /> Bảng số liệu và báo cáo</span>}>
                                 <div style={{ paddingTop: '15px' }}>
                                     <WindReportTab
                                         reportData={reportData}

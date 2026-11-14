@@ -83,15 +83,15 @@ const CDSQueryBuilderModal = ({
                 return false;
             }
             if (!credentialId) {
-                setErrorMsg('Vui lòng chọn tài khoản CDS xác thực.');
+                setErrorMsg('Vui lòng chọn tài khoản Copernicus.');
                 return false;
             }
             if (!targetDatasetId) {
-                setErrorMsg('Vui lòng chọn bộ dữ liệu đích trong hệ thống.');
+                setErrorMsg('Vui lòng chọn bộ dữ liệu lưu trữ.');
                 return false;
             }
             if (datasetName === 'custom' && !customDatasetName.trim()) {
-                setErrorMsg('Vui lòng nhập mã Dataset Copernicus tùy chỉnh.');
+                setErrorMsg('Vui lòng nhập tên bộ dữ liệu tùy chỉnh.');
                 return false;
             }
         } else if (currentStep === 2) {
@@ -117,11 +117,11 @@ const CDSQueryBuilderModal = ({
         } else if (currentStep === 4) {
             const [north, west, south, east] = bbox;
             if (isNaN(north) || isNaN(west) || isNaN(south) || isNaN(east)) {
-                setErrorMsg('Tọa độ Bounding Box không hợp lệ.');
+                setErrorMsg('Tọa độ khu vực không hợp lệ.');
                 return false;
             }
             if (north <= south) {
-                setErrorMsg('Vĩ độ Bắc (North) phải lớn hơn vĩ độ Nam (South).');
+                setErrorMsg('Vĩ độ Bắc phải lớn hơn vĩ độ Nam.');
                 return false;
             }
         }
@@ -221,10 +221,10 @@ const CDSQueryBuilderModal = ({
                     <div>
                         <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
                             <i className="fa fa-cloud-download" style={{ color: '#0284c7' }}></i>
-                            CDS Copernicus Query Builder Wizard
+                            Tạo tác vụ tải dữ liệu ERA5
                         </h3>
                         <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#64748b' }}>
-                            Trích xuất dữ liệu khí tượng tái phân tích ERA5 và nạp tự động vào hệ thống.
+                            Tải dữ liệu khí tượng tái phân tích ERA5 và nạp tự động vào hệ thống.
                         </p>
                     </div>
                     <button
@@ -249,7 +249,7 @@ const CDSQueryBuilderModal = ({
                         { num: 1, label: 'Cấu hình chung', icon: 'fa-cog' },
                         { num: 2, label: 'Biến dữ liệu', icon: 'fa-cubes' },
                         { num: 3, label: 'Thời gian', icon: 'fa-calendar' },
-                        { num: 4, label: 'Bản đồ & Tọa độ', icon: 'fa-globe' }
+                        { num: 4, label: 'Bản đồ và tọa độ', icon: 'fa-globe' }
                     ].map(s => {
                         const isActive = step === s.num;
                         const isDone = step > s.num;
@@ -306,14 +306,14 @@ const CDSQueryBuilderModal = ({
                                     className="form-control"
                                     value={name}
                                     onChange={e => setName(e.target.value)}
-                                    placeholder="VD: Cập nhật ERA5 Gió Biển Đông T1/2024"
+                                    placeholder="Ví dụ: Cập nhật ERA5 gió Biển Đông, tháng 1/2024"
                                     required
                                 />
                             </div>
 
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
                                 <div className="form-group">
-                                    <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Tài khoản xác thực CDS *</label>
+                                    <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Tài khoản Copernicus *</label>
                                     <select
                                         className="form-control"
                                         value={credentialId}
@@ -323,59 +323,59 @@ const CDSQueryBuilderModal = ({
                                         <option value="">-- Chọn tài khoản --</option>
                                         {credentials.map(c => (
                                             <option key={c.id} value={c.id}>
-                                                {c.name} ({c.masked_key})
+                                                {c.name}
                                             </option>
                                         ))}
                                     </select>
                                 </div>
 
                                 <div className="form-group">
-                                    <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Bộ dữ liệu đích trong hệ thống *</label>
+                                    <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Bộ dữ liệu lưu trữ *</label>
                                     <select
                                         className="form-control"
                                         value={targetDatasetId}
                                         onChange={e => setTargetDatasetId(e.target.value)}
                                         required
                                     >
-                                        <option value="">-- Chọn Dataset nạp vào --</option>
+                                        <option value="">-- Chọn bộ dữ liệu nạp vào --</option>
                                         {datasets.map(d => (
                                             <option key={d.id} value={d.id}>
-                                                {d.name} ({d.code})
+                                                {d.name}
                                             </option>
                                         ))}
                                     </select>
                                     <small style={{ color: '#64748b', fontSize: '11px', display: 'block', marginTop: '4px' }}>
-                                        Mọi granule và biến tải về sẽ tự động nạp và đồng bộ vào bộ dữ liệu này.
+                                        Toàn bộ dữ liệu tải về sẽ được tự động nạp vào bộ dữ liệu này.
                                     </small>
                                 </div>
                             </div>
 
                             <div className="form-group" style={{ marginBottom: '16px' }}>
-                                <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Dataset Copernicus Climate Data Store</label>
+                                <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Bộ dữ liệu trên Copernicus</label>
                                 <select
                                     className="form-control"
                                     value={datasetName}
                                     onChange={e => setDatasetName(e.target.value)}
                                 >
                                     <option value="reanalysis-era5-single-levels">
-                                        ERA5 hourly data on single levels from 1940 to present (Mặc định cho trắc gió)
+                                        ERA5 theo giờ, từ 1940 đến nay (mặc định cho dữ liệu gió)
                                     </option>
                                     <option value="reanalysis-era5-land">
-                                        ERA5-Land hourly data from 1950 to present (Độ phân giải 9km trên đất liền)
+                                        ERA5-Land theo giờ, từ 1950 đến nay, độ phân giải 9 km trên đất liền
                                     </option>
-                                    <option value="custom">-- Nhập mã dataset tùy chỉnh khác... --</option>
+                                    <option value="custom">-- Nhập tên bộ dữ liệu khác... --</option>
                                 </select>
                             </div>
 
                             {datasetName === 'custom' && (
                                 <div className="form-group" style={{ marginBottom: '16px' }}>
-                                    <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Mã Dataset Copernicus tùy chỉnh *</label>
+                                    <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Tên bộ dữ liệu tùy chỉnh *</label>
                                     <input
                                         type="text"
                                         className="form-control"
                                         value={customDatasetName}
                                         onChange={e => setCustomDatasetName(e.target.value)}
-                                        placeholder="VD: reanalysis-era5-pressure-levels"
+                                        placeholder="Ví dụ: reanalysis-era5-pressure-levels"
                                         required
                                     />
                                 </div>
@@ -389,7 +389,7 @@ const CDSQueryBuilderModal = ({
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                                 <div>
                                     <span style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>
-                                        Tích chọn các biến khí tượng cần trích xuất:
+                                        Chọn các biến khí tượng cần tải:
                                     </span>
                                     <span className="badge" style={{ marginLeft: '8px', backgroundColor: '#0284c7' }}>
                                         Đã chọn {selectedVariables.length} biến
@@ -401,7 +401,7 @@ const CDSQueryBuilderModal = ({
                                         className="btn btn-xs btn-default"
                                         onClick={() => setSelectedVariables([...DEFAULT_WIND_VARIABLES])}
                                     >
-                                        <i className="fa fa-bolt" style={{ color: '#0284c7', marginRight: '4px' }}></i>Mặc định trắc gió
+                                        <i className="fa fa-bolt" style={{ color: '#0284c7', marginRight: '4px' }}></i>Mặc định cho gió
                                     </button>
                                     <button
                                         type="button"
@@ -485,7 +485,7 @@ const CDSQueryBuilderModal = ({
                     {step === 3 && (
                         <div>
                             <div className="form-group" style={{ marginBottom: '16px' }}>
-                                <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Chế độ tải số liệu</label>
+                                <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Chế độ tải dữ liệu</label>
                                 <div style={{ display: 'flex', gap: '20px', marginTop: '6px' }}>
                                     <label style={{ fontSize: '13px', fontWeight: 500, cursor: 'pointer' }}>
                                         <input
@@ -496,7 +496,7 @@ const CDSQueryBuilderModal = ({
                                             onChange={() => setMode('ONCE')}
                                             style={{ marginRight: '6px' }}
                                         />
-                                        Tải một lần theo dải ngày chỉ định (Thủ công)
+                                        Tải một lần theo khoảng ngày chỉ định (thủ công)
                                     </label>
                                     <label style={{ fontSize: '13px', fontWeight: 500, cursor: 'pointer' }}>
                                         <input
@@ -507,7 +507,7 @@ const CDSQueryBuilderModal = ({
                                             onChange={() => setMode('RECURRING')}
                                             style={{ marginRight: '6px' }}
                                         />
-                                        Đồng bộ định kỳ hàng ngày (Celery Beat)
+                                        Đồng bộ định kỳ hằng ngày
                                     </label>
                                 </div>
                             </div>
@@ -541,7 +541,7 @@ const CDSQueryBuilderModal = ({
                                     <div style={{ marginBottom: '16px' }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                                             <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155', margin: 0 }}>
-                                                Mốc giờ trong ngày (Giờ UTC):
+                                                Mốc giờ trong ngày, theo giờ UTC:
                                             </label>
                                             <div style={{ display: 'flex', gap: '6px' }}>
                                                 <button
@@ -563,7 +563,7 @@ const CDSQueryBuilderModal = ({
                                                     className="btn btn-xs btn-default"
                                                     onClick={() => setSelectedHours([...HOUR_PRESETS.SYNOPTIC_6H])}
                                                 >
-                                                    Giờ chính (6h)
+                                                    Mỗi 6h
                                                 </button>
                                             </div>
                                         </div>
@@ -598,11 +598,11 @@ const CDSQueryBuilderModal = ({
                                                 checked={autoLatest}
                                                 onChange={e => setAutoLatest(e.target.checked)}
                                             />
-                                            Tự động nạp từ granule mới nhất đến hôm nay (trừ độ trễ)
+                                            Tự động nạp từ dữ liệu mới nhất đến hôm nay (trừ độ trễ)
                                         </label>
                                     </div>
                                     <div className="form-group" style={{ margin: 0, maxWidth: '240px' }}>
-                                        <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Độ trễ số liệu ERA5 (ngày)</label>
+                                        <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Độ trễ dữ liệu ERA5 (ngày)</label>
                                         <input
                                             type="number"
                                             className="form-control"
@@ -622,7 +622,7 @@ const CDSQueryBuilderModal = ({
                         <div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                                 <span style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>
-                                    Phạm vi không gian & Tọa độ Bounding Box:
+                                    Khu vực cần tải:
                                 </span>
                                 <div style={{ display: 'flex', gap: '8px' }}>
                                     <button
@@ -630,7 +630,7 @@ const CDSQueryBuilderModal = ({
                                         className="btn btn-xs btn-default"
                                         onClick={() => setBbox([...DEFAULT_VIETNAM_BBOX])}
                                     >
-                                        🇻🇳 Việt Nam & Biển Đông
+                                        🇻🇳 Việt Nam và Biển Đông
                                     </button>
                                     <button
                                         type="button"
@@ -648,7 +648,7 @@ const CDSQueryBuilderModal = ({
                             {/* 4 ô tọa độ */}
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginTop: '12px' }}>
                                 <div>
-                                    <label style={{ fontSize: '11px', fontWeight: 600, color: '#64748b' }}>Bắc (North)</label>
+                                    <label style={{ fontSize: '11px', fontWeight: 600, color: '#64748b' }}>Bắc</label>
                                     <input
                                         type="number"
                                         step="0.1"
@@ -658,7 +658,7 @@ const CDSQueryBuilderModal = ({
                                     />
                                 </div>
                                 <div>
-                                    <label style={{ fontSize: '11px', fontWeight: 600, color: '#64748b' }}>Tây (West)</label>
+                                    <label style={{ fontSize: '11px', fontWeight: 600, color: '#64748b' }}>Tây</label>
                                     <input
                                         type="number"
                                         step="0.1"
@@ -668,7 +668,7 @@ const CDSQueryBuilderModal = ({
                                     />
                                 </div>
                                 <div>
-                                    <label style={{ fontSize: '11px', fontWeight: 600, color: '#64748b' }}>Nam (South)</label>
+                                    <label style={{ fontSize: '11px', fontWeight: 600, color: '#64748b' }}>Nam</label>
                                     <input
                                         type="number"
                                         step="0.1"
@@ -678,7 +678,7 @@ const CDSQueryBuilderModal = ({
                                     />
                                 </div>
                                 <div>
-                                    <label style={{ fontSize: '11px', fontWeight: 600, color: '#64748b' }}>Đông (East)</label>
+                                    <label style={{ fontSize: '11px', fontWeight: 600, color: '#64748b' }}>Đông</label>
                                     <input
                                         type="number"
                                         step="0.1"
@@ -749,9 +749,9 @@ const CDSQueryBuilderModal = ({
                                     className="btn btn-success"
                                     onClick={() => handleSubmit(true)}
                                     style={{ borderRadius: '6px', fontWeight: 700, backgroundColor: '#0284c7', borderColor: '#0284c7' }}
-                                    title="Lưu tác vụ và đẩy ngay vào Celery Worker để tải và nạp NetCDF"
+                                    title="Lưu tác vụ và bắt đầu tải dữ liệu ngay"
                                 >
-                                    <i className="fa fa-rocket" style={{ marginRight: '6px' }}></i>Lưu & Kích hoạt tải ngay
+                                    <i className="fa fa-rocket" style={{ marginRight: '6px' }}></i>Lưu và chạy ngay
                                 </button>
                             </>
                         )}

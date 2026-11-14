@@ -25,6 +25,13 @@ import { defaults as defaultControls, ScaleLine, FullScreen } from 'ol/control';
 
 import { getStationsMap } from '../../api/wind';
 
+const STATION_TYPE_LABELS = {
+    SYNOP: 'Bề mặt',
+    SURFACE: 'Bề mặt',
+    MET_MAST: 'Cột khí tượng',
+    BUOY: 'Phao biển'
+};
+
 const DEFAULT_VIETNAM_CENTER = [106.5, 16.0]; // Longitude, Latitude
 const DEFAULT_ZOOM = 6;
 
@@ -411,7 +418,7 @@ const WindStationMapContainer = ({
                 <div style={{ fontWeight: 600, color: '#334155', marginBottom: '2px' }}>Chú giải trạm:</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span style={{ display: 'inline-block', width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#2563eb', border: '1px solid #fff' }} />
-                    <span>SYNOP (Khí tượng bề mặt)</span>
+                    <span>Trạm khí tượng bề mặt</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span style={{ display: 'inline-block', width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#ef4444', border: '2px solid #fff' }} />
@@ -486,7 +493,7 @@ const WindStationMapContainer = ({
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
                                 <span style={{ color: '#64748b', fontSize: '11px' }}>Mã: {popupStation.station_code || 'N/A'}</span>
                                 <Label bsStyle={stationType === 'SYNOP' ? 'info' : 'warning'} style={{ fontSize: '9px', padding: '2px 5px' }}>
-                                    {stationType}
+                                    {STATION_TYPE_LABELS[stationType] || stationType}
                                 </Label>
                             </div>
                         </div>
@@ -536,7 +543,7 @@ const WindStationMapContainer = ({
                             }}
                         >
                             <i className="fa fa-line-chart" style={{ marginRight: '4px' }} />
-                            Xem chi tiết & Biểu đồ
+                            Xem chi tiết và biểu đồ
                         </Button>
                     </div>
                 )}

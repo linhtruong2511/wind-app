@@ -25,7 +25,7 @@ const AdminRouteGuard = ({ config, children }) => {
                     403 - Truy cập bị từ chối
                 </h1>
                 <p style={{ color: '#94a3b8', maxWidth: '480px', marginBottom: '25px', lineHeight: 1.6 }}>
-                    Bạn cần có đặc quyền Quản trị viên (Staff hoặc Superuser) để truy cập hệ thống quản trị WindHUB.
+                    Bạn cần có quyền quản trị viên để truy cập hệ thống quản trị WindHUB.
                 </p>
                 <div style={{ display: 'flex', gap: '15px' }}>
                     <NavLink to="/stations" className="btn btn-primary" style={{ padding: '10px 20px', borderRadius: '6px' }}>

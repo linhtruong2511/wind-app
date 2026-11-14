@@ -87,10 +87,10 @@ const WindFarmsRoute = ({ history }) => {
                         <div>
                             <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px', color: '#0f172a' }}>
                                 <i className="fa fa-industry" style={{ color: '#0284c7' }} />
-                                Khảo Sát Tiềm Năng & Trang Trại Gió Ngoài Khơi Vịnh Bắc Bộ
+                                Khảo sát tiềm năng và trang trại gió ngoài khơi Vịnh Bắc Bộ
                             </h3>
                             <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '12px' }}>
-                                Dữ liệu mô hình dự báo công suất (PR/RF) tại 1.000 điểm tọa độ tua-bin biển, phân tích độ sâu GEBCO và tiềm năng năng lượng gió.
+                                Dữ liệu mô hình dự báo công suất tại 1.000 điểm đặt tuabin trên biển, phân tích độ sâu đáy biển và tiềm năng năng lượng gió.
                             </p>
                         </div>
                         <div style={{ display: 'flex', gap: '8px' }}>
@@ -99,7 +99,7 @@ const WindFarmsRoute = ({ history }) => {
                                 bsStyle="default"
                                 onClick={() => history.push('/dashboard')}
                             >
-                                <i className="fa fa-arrow-left" /> Quay lại Dashboard
+                                <i className="fa fa-arrow-left" /> Quay lại trang chủ
                             </Button>
                         </div>
                     </Col>

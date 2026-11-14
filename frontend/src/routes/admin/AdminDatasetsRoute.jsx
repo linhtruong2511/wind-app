@@ -9,6 +9,19 @@ import {
     getDatasetAccessPolicies
 } from '../../api/admin';
 
+const CATEGORY_LABELS = {
+    GRIDDED: 'Lưới tọa độ',
+    STATION: 'Trạm quan trắc',
+    SATELLITE: 'Vệ tinh viễn thám',
+    EVENT: 'Hiện tượng cực đoan'
+};
+
+const ACCESS_LABELS = {
+    PUBLIC: 'Công khai',
+    INTERNAL: 'Nội bộ',
+    RESTRICTED: 'Giới hạn'
+};
+
 const AdminDatasetsRoute = () => {
     const [activeTab, setActiveTab] = useState('datasets'); // 'datasets' | 'variables' | 'policies'
     const [datasets, setDatasets] = useState([]);
@@ -26,7 +39,7 @@ const AdminDatasetsRoute = () => {
         name: '',
         category: 'GRIDDED',
         description: '',
-        source_provider: 'ECMWF / Copernicus CDS',
+        source_provider: 'ECMWF / Copernicus',
         access_level: 'INTERNAL',
         is_active: true
     });
@@ -99,10 +112,10 @@ const AdminDatasetsRoute = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                 <div>
                     <h2 style={{ fontSize: '24px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
-                        Bộ Dữ liệu & Phân quyền Truy cập
+                        Bộ dữ liệu và phân quyền truy cập
                     </h2>
                     <p style={{ color: '#64748b', fontSize: '14px', margin: '4px 0 0 0' }}>
-                        Quản lý định danh các nguồn dữ liệu tái phân tích / quan trắc, danh mục biến khí quyển và ma trận phân quyền người dùng GeoNode.
+                        Quản lý các nguồn dữ liệu tái phân tích và quan trắc, danh mục biến khí tượng và phân quyền truy cập cho người dùng.
                     </p>
                 </div>
                 <div>
@@ -115,7 +128,7 @@ const AdminDatasetsRoute = () => {
                                     name: '',
                                     category: 'GRIDDED',
                                     description: '',
-                                    source_provider: 'ECMWF / Copernicus CDS',
+                                    source_provider: 'ECMWF / Copernicus',
                                     access_level: 'INTERNAL',
                                     is_active: true
                                 });
@@ -193,7 +206,7 @@ const AdminDatasetsRoute = () => {
                         <table className="table table-hover" style={{ margin: 0 }}>
                             <thead>
                                 <tr style={{ background: '#f8fafc', color: '#475569', fontSize: '12px', textTransform: 'uppercase' }}>
-                                    <th style={{ padding: '12px 14px' }}>Mã Dataset</th>
+                                    <th style={{ padding: '12px 14px' }}>Mã bộ dữ liệu</th>
                                     <th style={{ padding: '12px 14px' }}>Tên bộ dữ liệu</th>
                                     <th style={{ padding: '12px 14px' }}>Phân loại</th>
                                     <th style={{ padding: '12px 14px' }}>Nguồn cung cấp</th>
@@ -215,12 +228,12 @@ const AdminDatasetsRoute = () => {
                                             <td style={{ padding: '12px 14px', fontWeight: 600, color: '#0284c7' }}>{d.code}</td>
                                             <td style={{ padding: '12px 14px', fontWeight: 600, color: '#0f172a' }}>{d.name}</td>
                                             <td style={{ padding: '12px 14px' }}>
-                                                <span className="badge" style={{ backgroundColor: '#6366f1' }}>{d.category}</span>
+                                                <span className="badge" style={{ backgroundColor: '#6366f1' }}>{CATEGORY_LABELS[d.category] || d.category}</span>
                                             </td>
                                             <td style={{ padding: '12px 14px', color: '#64748b' }}>{d.source_provider || '-'}</td>
                                             <td style={{ padding: '12px 14px' }}>
                                                 <span className={`label label-${d.access_level === 'PUBLIC' ? 'success' : d.access_level === 'INTERNAL' ? 'info' : 'warning'}`}>
-                                                    {d.access_level}
+                                                    {ACCESS_LABELS[d.access_level] || d.access_level}
                                                 </span>
                                             </td>
                                             <td style={{ padding: '12px 14px' }}>
@@ -282,7 +295,7 @@ const AdminDatasetsRoute = () => {
                             >
                                 <option value="">-- Tất cả bộ dữ liệu --</option>
                                 {datasets.map(d => (
-                                    <option key={d.id} value={d.id}>{d.name} ({d.code})</option>
+                                    <option key={d.id} value={d.id}>{d.name}</option>
                                 ))}
                             </select>
                         </div>
@@ -295,8 +308,8 @@ const AdminDatasetsRoute = () => {
                                     <th style={{ padding: '12px 14px' }}>Mã biến</th>
                                     <th style={{ padding: '12px 14px' }}>Tên hiển thị</th>
                                     <th style={{ padding: '12px 14px' }}>Đơn vị đo</th>
-                                    <th style={{ padding: '12px 14px' }}>Biến thành phần [u, v]</th>
-                                    <th style={{ padding: '12px 14px' }}>Thuộc tính thành phần</th>
+                                    <th style={{ padding: '12px 14px' }}>Thành phần cấu thành</th>
+                                    <th style={{ padding: '12px 14px' }}>Loại biến</th>
                                 </tr>
                             </thead>
                             <tbody style={{ fontSize: '13px' }}>
@@ -313,11 +326,11 @@ const AdminDatasetsRoute = () => {
                                             <td style={{ padding: '12px 14px', fontWeight: 600 }}>{v.variable_name}</td>
                                             <td style={{ padding: '12px 14px' }}>{v.unit || '-'}</td>
                                             <td style={{ padding: '12px 14px', fontFamily: 'monospace' }}>
-                                                {v.components && v.components.length > 0 ? JSON.stringify(v.components) : '-'}
+                                                {v.components && v.components.length > 0 ? v.components.join(', ') : '-'}
                                             </td>
                                             <td style={{ padding: '12px 14px' }}>
                                                 {v.is_component ? (
-                                                    <span className="badge" style={{ backgroundColor: '#e0f2fe', color: '#0369a1' }}>Thành phần NetCDF</span>
+                                                    <span className="badge" style={{ backgroundColor: '#e0f2fe', color: '#0369a1' }}>Thành phần dữ liệu</span>
                                                 ) : (
                                                     <span className="badge" style={{ backgroundColor: '#f1f5f9', color: '#475569' }}>Biến chính</span>
                                                 )}
@@ -340,7 +353,7 @@ const AdminDatasetsRoute = () => {
                                 <tr style={{ background: '#f8fafc', color: '#475569', fontSize: '12px', textTransform: 'uppercase' }}>
                                     <th style={{ padding: '12px 14px' }}>Mã chính sách</th>
                                     <th style={{ padding: '12px 14px' }}>Bộ dữ liệu</th>
-                                    <th style={{ padding: '12px 14px' }}>Nhóm người dùng (GeoNode Group)</th>
+                                    <th style={{ padding: '12px 14px' }}>Nhóm người dùng</th>
                                     <th style={{ padding: '12px 14px' }}>Xem</th>
                                     <th style={{ padding: '12px 14px' }}>Truy vấn</th>
                                     <th style={{ padding: '12px 14px' }}>Tải về</th>
@@ -350,7 +363,7 @@ const AdminDatasetsRoute = () => {
                                 {policies.length === 0 ? (
                                     <tr>
                                         <td colSpan="6" style={{ textAlign: 'center', padding: '24px', color: '#94a3b8' }}>
-                                            {loading ? 'Đang tải chính sách...' : 'Chưa cấu hình chính sách phân quyền riêng (Mặc định tuân theo cấp độ truy cập của Dataset).'}
+                                            {loading ? 'Đang tải chính sách...' : 'Chưa có chính sách phân quyền riêng. Mặc định theo cấp truy cập của bộ dữ liệu.'}
                                         </td>
                                     </tr>
                                 ) : (
@@ -387,14 +400,14 @@ const AdminDatasetsRoute = () => {
                         <form onSubmit={handleSaveDataset}>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
                                 <div className="form-group">
-                                    <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Mã định danh (Code) *</label>
+                                    <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Mã định danh *</label>
                                     <input
                                         type="text"
                                         className="form-control"
                                         value={datasetForm.code}
                                         onChange={e => setDatasetForm({ ...datasetForm, code: e.target.value })}
                                         required
-                                        placeholder="VD: ERA5_HOURLY"
+                                        placeholder="Ví dụ: ERA5_HOURLY"
                                     />
                                 </div>
                                 <div className="form-group">
@@ -405,7 +418,7 @@ const AdminDatasetsRoute = () => {
                                         value={datasetForm.name}
                                         onChange={e => setDatasetForm({ ...datasetForm, name: e.target.value })}
                                         required
-                                        placeholder="VD: ECMWF ERA5 Hourly Wind"
+                                        placeholder="Ví dụ: Gió ERA5 theo giờ của ECMWF"
                                     />
                                 </div>
                             </div>
@@ -417,10 +430,10 @@ const AdminDatasetsRoute = () => {
                                         value={datasetForm.category}
                                         onChange={e => setDatasetForm({ ...datasetForm, category: e.target.value })}
                                     >
-                                        <option value="GRIDDED">Lưới tọa độ (NetCDF/GRIB)</option>
-                                        <option value="STATION">Trạm quan trắc (Obs)</option>
+                                        <option value="GRIDDED">Lưới tọa độ</option>
+                                        <option value="STATION">Trạm quan trắc</option>
                                         <option value="SATELLITE">Vệ tinh viễn thám</option>
-                                        <option value="EVENT">Hiện tượng cực đoan (Bão)</option>
+                                        <option value="EVENT">Hiện tượng cực đoan và bão</option>
                                     </select>
                                 </div>
                                 <div className="form-group">
@@ -430,9 +443,9 @@ const AdminDatasetsRoute = () => {
                                         value={datasetForm.access_level}
                                         onChange={e => setDatasetForm({ ...datasetForm, access_level: e.target.value })}
                                     >
-                                        <option value="PUBLIC">Công khai (Tất cả)</option>
-                                        <option value="INTERNAL">Nội bộ (Đăng nhập)</option>
-                                        <option value="RESTRICTED">Giới hạn (Theo nhóm)</option>
+                                        <option value="PUBLIC">Công khai</option>
+                                        <option value="INTERNAL">Nội bộ, cần đăng nhập</option>
+                                        <option value="RESTRICTED">Giới hạn theo nhóm</option>
                                     </select>
                                 </div>
                             </div>
@@ -460,7 +473,7 @@ const AdminDatasetsRoute = () => {
                                         type="checkbox"
                                         checked={datasetForm.is_active}
                                         onChange={e => setDatasetForm({ ...datasetForm, is_active: e.target.checked })}
-                                    /> Kích hoạt sử dụng bộ dữ liệu
+                                    /> Cho phép sử dụng bộ dữ liệu
                                 </label>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>

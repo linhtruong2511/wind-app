@@ -5,10 +5,10 @@ import { Panel, Row, Col, FormGroup, FormControl, ControlLabel } from 'react-boo
 export const VARIABLES_MAP = {
     wind_speed: { label: 'Tốc độ gió', unit: 'm/s', color: '#1e40af' },
     wind_dir: { label: 'Hướng gió', unit: '°', color: '#059669' },
-    temp_2m: { label: 'Nhiệt độ (2m)', unit: '°C', color: '#dc2626' },
+    temp_2m: { label: 'Nhiệt độ ở 2 m', unit: '°C', color: '#dc2626' },
     humidity: { label: 'Độ ẩm', unit: '%', color: '#0284c7' },
     pressure: { label: 'Khí áp', unit: 'hPa', color: '#7c3aed' },
-    rain_06h: { label: 'Lượng mưa (6h)', unit: 'mm', color: '#d97706' }
+    rain_06h: { label: 'Lượng mưa trong 6 giờ', unit: 'mm', color: '#d97706' }
 };
 
 const currentYear = new Date().getFullYear();
@@ -25,7 +25,7 @@ const WindStationFilterControls = ({
     endYear, setEndYear
 }) => {
     return (
-        <Panel header={<h4>Bộ lọc thời gian & Yếu tố phân tích</h4>}>
+        <Panel header={<h4>Bộ lọc thời gian và yếu tố phân tích</h4>}>
             <Row  style={{ padding: '8px'}}>
                 <Col xs={12} sm={3}>
                     <FormGroup controlId="viewModeSelect">

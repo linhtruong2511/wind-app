@@ -77,7 +77,7 @@ const WindStationsRoute = ({ history }) => {
                 <Row style={{ marginBottom: '10px' }}>
                     <Col xs={12}>
                         <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            Danh Sách Trạm Quan Trắc Gió
+                            Danh sách trạm quan trắc gió
                         </h3>
                     </Col>
                 </Row>

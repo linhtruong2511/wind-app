@@ -62,7 +62,7 @@ const WindReportTab = ({
     return (
         <Panel header={
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontWeight: 600 }}><i className="fa fa-table" /> Bảng Thống Kê Tổng Hợp Mạng Lưới Trạm</span>
+                <span style={{ fontWeight: 600 }}><i className="fa fa-table" /> Bảng thống kê tổng hợp mạng lưới trạm</span>
                 {exportUrl && (
                     <a
                         href={exportUrl}
@@ -70,7 +70,7 @@ const WindReportTab = ({
                         className="btn btn-success btn-sm"
                         style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                     >
-                        <i className="fa fa-download" /> Xuất File CSV
+                        <i className="fa fa-download" /> Xuất tệp CSV
                     </a>
                 )}
             </div>
@@ -119,31 +119,31 @@ const WindReportTab = ({
                     <thead style={{ background: '#f1f5f9', color: '#334155' }}>
                         <tr>
                             <th style={{ cursor: 'pointer', whiteSpace: 'nowrap' }} onClick={() => handleSort('station_code')}>
-                                Mã Trạm {sortField === 'station_code' && (sortAsc ? '▲' : '▼')}
+                                Mã trạm {sortField === 'station_code' && (sortAsc ? '▲' : '▼')}
                             </th>
                             <th style={{ cursor: 'pointer', whiteSpace: 'nowrap' }} onClick={() => handleSort('name')}>
-                                Tên Trạm {sortField === 'name' && (sortAsc ? '▲' : '▼')}
+                                Tên trạm {sortField === 'name' && (sortAsc ? '▲' : '▼')}
                             </th>
                             <th style={{ cursor: 'pointer', whiteSpace: 'nowrap' }} onClick={() => handleSort('province')}>
-                                Tỉnh / Khu vực {sortField === 'province' && (sortAsc ? '▲' : '▼')}
+                                Tỉnh hoặc khu vực {sortField === 'province' && (sortAsc ? '▲' : '▼')}
                             </th>
                             <th style={{ cursor: 'pointer', whiteSpace: 'nowrap', textAlign: 'right' }} onClick={() => handleSort('wind_speed_avg')}>
-                                Gió TB (m/s) {sortField === 'wind_speed_avg' && (sortAsc ? '▲' : '▼')}
+                                Gió trung bình (m/s) {sortField === 'wind_speed_avg' && (sortAsc ? '▲' : '▼')}
                             </th>
                             <th style={{ cursor: 'pointer', whiteSpace: 'nowrap', textAlign: 'right' }} onClick={() => handleSort('wind_speed_max')}>
-                                Gió Cực Đại (m/s) {sortField === 'wind_speed_max' && (sortAsc ? '▲' : '▼')}
+                                Gió cực đại (m/s) {sortField === 'wind_speed_max' && (sortAsc ? '▲' : '▼')}
                             </th>
                             <th style={{ cursor: 'pointer', whiteSpace: 'nowrap', textAlign: 'right' }} onClick={() => handleSort('temp_avg')}>
-                                Nhiệt độ TB (°C) {sortField === 'temp_avg' && (sortAsc ? '▲' : '▼')}
+                                Nhiệt độ trung bình (°C) {sortField === 'temp_avg' && (sortAsc ? '▲' : '▼')}
                             </th>
                             <th style={{ cursor: 'pointer', whiteSpace: 'nowrap', textAlign: 'right' }} onClick={() => handleSort('temp_max')}>
-                                Nhiệt độ Max (°C) {sortField === 'temp_max' && (sortAsc ? '▲' : '▼')}
+                                Nhiệt độ cao nhất (°C) {sortField === 'temp_max' && (sortAsc ? '▲' : '▼')}
                             </th>
                             <th style={{ cursor: 'pointer', whiteSpace: 'nowrap', textAlign: 'right' }} onClick={() => handleSort('temp_min')}>
-                                Nhiệt độ Min (°C) {sortField === 'temp_min' && (sortAsc ? '▲' : '▼')}
+                                Nhiệt độ thấp nhất (°C) {sortField === 'temp_min' && (sortAsc ? '▲' : '▼')}
                             </th>
                             <th style={{ cursor: 'pointer', whiteSpace: 'nowrap', textAlign: 'right' }} onClick={() => handleSort('pressure_avg')}>
-                                Khí áp TB (hPa) {sortField === 'pressure_avg' && (sortAsc ? '▲' : '▼')}
+                                Khí áp trung bình (hPa) {sortField === 'pressure_avg' && (sortAsc ? '▲' : '▼')}
                             </th>
                         </tr>
                     </thead>

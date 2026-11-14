@@ -104,7 +104,7 @@ const AdminDashboardRoute = () => {
                 <div style={{ background: '#ffffff', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                         <div>
-                            <div style={{ fontSize: '13px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>Lưới Raster NetCDF</div>
+                            <div style={{ fontSize: '13px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>Dữ liệu lưới</div>
                             <div style={{ fontSize: '30px', fontWeight: 800, color: '#0f172a', marginTop: '6px' }}>
                                 {loading ? '...' : (stats?.total_granules ?? 0)}
                             </div>
@@ -114,7 +114,7 @@ const AdminDashboardRoute = () => {
                         </div>
                     </div>
                     <div style={{ marginTop: '14px', fontSize: '13px', color: '#64748b' }}>
-                        <span>Tổng số mốc giờ NetCDF đã chỉ mục</span>
+                        <span>Tổng số mốc giờ dữ liệu đã nạp</span>
                     </div>
                 </div>
 
@@ -122,7 +122,7 @@ const AdminDashboardRoute = () => {
                 <div style={{ background: '#ffffff', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                         <div>
-                            <div style={{ fontSize: '13px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>Tác vụ CDS ERA5</div>
+                            <div style={{ fontSize: '13px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>Tác vụ thu thập ERA5</div>
                             <div style={{ fontSize: '30px', fontWeight: 800, color: '#0f172a', marginTop: '6px' }}>
                                 {loading ? '...' : (stats?.active_cds_jobs ?? 0)}
                             </div>
@@ -132,7 +132,7 @@ const AdminDashboardRoute = () => {
                         </div>
                     </div>
                     <div style={{ marginTop: '14px', fontSize: '13px', color: '#0284c7' }}>
-                        <span>Đang chạy tải nền</span>
+                        <span>Đang tải dữ liệu</span>
                     </div>
                 </div>
 
@@ -163,19 +163,19 @@ const AdminDashboardRoute = () => {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
                     <NavLink to="/admin/rasters" className="btn btn-default" style={{ padding: '14px', textAlign: 'left', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                         <div style={{ fontWeight: 600, color: '#0284c7', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <i className="fa fa-upload"></i>Nạp tệp NetCDF
+                            <i className="fa fa-upload"></i>Nạp tệp dữ liệu lưới
                         </div>
-                        <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>Tải lên .nc hoặc .zip chứa lưới gió</div>
+                        <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>Tải lên tệp dữ liệu lưới gió</div>
                     </NavLink>
                     <NavLink to="/admin/stations" className="btn btn-default" style={{ padding: '14px', textAlign: 'left', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                         <div style={{ fontWeight: 600, color: '#0284c7', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <i className="fa fa-file-excel-o"></i>Nhập số liệu Excel/CSV
+                            <i className="fa fa-file-excel-o"></i>Nhập số liệu trạm
                         </div>
-                        <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>Nạp dữ liệu chuỗi thời gian trạm</div>
+                        <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>Nạp chuỗi số liệu theo thời gian của trạm</div>
                     </NavLink>
                     <NavLink to="/admin/cds" className="btn btn-default" style={{ padding: '14px', textAlign: 'left', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                         <div style={{ fontWeight: 600, color: '#0284c7', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <i className="fa fa-play-circle"></i>Chạy tải CDS ERA5
+                            <i className="fa fa-play-circle"></i>Chạy tải dữ liệu ERA5
                         </div>
                         <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>Thu thập dữ liệu tái phân tích châu Âu</div>
                     </NavLink>
@@ -183,7 +183,7 @@ const AdminDashboardRoute = () => {
                         <div style={{ fontWeight: 600, color: '#0284c7', display: 'flex', alignItems: 'center', gap: '8px' }}>
                             <i className="fa fa-plus-circle"></i>Thêm trang trại gió
                         </div>
-                        <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>Khai báo công suất & tọa độ tuabin</div>
+                        <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>Khai báo công suất và tọa độ tuabin</div>
                     </NavLink>
                 </div>
             </div>
@@ -193,10 +193,10 @@ const AdminDashboardRoute = () => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
                     <div>
                         <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
-                            Nhật ký Nạp & Thu thập Dữ liệu Gần đây
+                            Nhật ký nạp và thu thập dữ liệu gần đây
                         </h3>
                         <p style={{ fontSize: '13px', color: '#64748b', margin: '4px 0 0 0' }}>
-                            Theo dõi tiến trình và thông báo lỗi của các lượt nạp tệp NetCDF / CSV.
+                            Theo dõi tiến trình và thông báo lỗi của các lượt nạp tệp dữ liệu.
                         </p>
                     </div>
                 </div>
@@ -205,13 +205,13 @@ const AdminDashboardRoute = () => {
                     <table className="table table-hover" style={{ margin: 0 }}>
                         <thead>
                             <tr style={{ background: '#f8fafc', color: '#475569', fontSize: '12px', textTransform: 'uppercase' }}>
-                                <th style={{ padding: '12px 14px' }}>Mã log</th>
+                                <th style={{ padding: '12px 14px' }}>Mã nhật ký</th>
                                 <th style={{ padding: '12px 14px' }}>Bộ dữ liệu</th>
                                 <th style={{ padding: '12px 14px' }}>Tệp nguồn</th>
                                 <th style={{ padding: '12px 14px' }}>Trạng thái</th>
                                 <th style={{ padding: '12px 14px' }}>Bản ghi</th>
                                 <th style={{ padding: '12px 14px' }}>Bắt đầu lúc</th>
-                                <th style={{ padding: '12px 14px' }}>Ghi chú / Chi tiết lỗi</th>
+                                <th style={{ padding: '12px 14px' }}>Ghi chú hoặc lỗi</th>
                             </tr>
                         </thead>
                         <tbody style={{ fontSize: '13px' }}>
@@ -231,7 +231,7 @@ const AdminDashboardRoute = () => {
                                         <td style={{ padding: '12px 14px', fontWeight: 600 }}>{log.records_processed ?? 0}</td>
                                         <td style={{ padding: '12px 14px', color: '#64748b' }}>{formatDate(log.started_at)}</td>
                                         <td style={{ padding: '12px 14px', color: log.error_message ? '#ef4444' : '#64748b', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={log.error_message || ''}>
-                                            {log.error_message || 'Hoàn thành ổn định'}
+                                            {log.error_message || 'Hoàn thành'}
                                         </td>
                                     </tr>
                                 ))

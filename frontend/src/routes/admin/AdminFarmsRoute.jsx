@@ -10,6 +10,21 @@ import {
     deleteTurbine
 } from '../../api/admin';
 
+const FARM_STATUS_LABELS = {
+    OPERATING: 'Đang vận hành',
+    UNDER_CONSTRUCTION: 'Đang xây dựng',
+    PLANNED: 'Quy hoạch',
+    DECOMMISSIONED: 'Ngừng hoạt động',
+    MAINTENANCE: 'Bảo trì'
+};
+
+const FOUNDATION_LABELS = {
+    MONOPILE: 'Móng đơn',
+    JACKET: 'Móng chân đế',
+    FLOATING: 'Móng nổi',
+    ONSHORE: 'Móng trụ bê tông trên bờ'
+};
+
 const AdminFarmsRoute = () => {
     const [activeTab, setActiveTab] = useState('farms'); // 'farms' | 'turbines'
     const [farms, setFarms] = useState([]);
@@ -141,10 +156,10 @@ const AdminFarmsRoute = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                 <div>
                     <h2 style={{ fontSize: '24px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
-                        Quản lý Trang trại Gió & Tuabin
+                        Quản lý trang trại gió và tuabin
                     </h2>
                     <p style={{ color: '#64748b', fontSize: '14px', margin: '4px 0 0 0' }}>
-                        Khai báo thông số kỹ thuật trang trại điện gió ngoài khơi/trên bờ, tọa độ tuabin và công nghệ móng cố định/móng nổi.
+                        Khai báo thông số kỹ thuật của trang trại điện gió trên bờ hoặc ngoài khơi, tọa độ tuabin và loại móng.
                     </p>
                 </div>
                 <div style={{ display: 'flex', gap: '10px' }}>
@@ -215,7 +230,7 @@ const AdminFarmsRoute = () => {
                         cursor: 'pointer'
                     }}
                 >
-                    <i className="fa fa-bolt" style={{ marginRight: '8px' }}></i>Trang trại Gió ({farms.length})
+                    <i className="fa fa-bolt" style={{ marginRight: '8px' }}></i>Trang trại gió ({farms.length})
                 </button>
                 <button
                     onClick={() => setActiveTab('turbines')}
@@ -230,7 +245,7 @@ const AdminFarmsRoute = () => {
                         cursor: 'pointer'
                     }}
                 >
-                    <i className="fa fa-crosshairs" style={{ marginRight: '8px' }}></i>Danh sách Tuabin ({turbines.length})
+                    <i className="fa fa-crosshairs" style={{ marginRight: '8px' }}></i>Danh sách tuabin ({turbines.length})
                 </button>
             </div>
 
@@ -246,7 +261,7 @@ const AdminFarmsRoute = () => {
                                     <th style={{ padding: '12px 14px' }}>Chủ đầu tư</th>
                                     <th style={{ padding: '12px 14px' }}>Công suất (MW)</th>
                                     <th style={{ padding: '12px 14px' }}>Trạng thái</th>
-                                    <th style={{ padding: '12px 14px' }}>Năm COD</th>
+                                    <th style={{ padding: '12px 14px' }}>Năm vận hành</th>
                                     <th style={{ padding: '12px 14px', textAlign: 'right' }}>Thao tác</th>
                                 </tr>
                             </thead>
@@ -266,7 +281,7 @@ const AdminFarmsRoute = () => {
                                             <td style={{ padding: '12px 14px', fontWeight: 700 }}>{f.total_capacity_mw ? `${f.total_capacity_mw} MW` : '-'}</td>
                                             <td style={{ padding: '12px 14px' }}>
                                                 <span className={`label label-${f.status === 'OPERATING' ? 'success' : f.status === 'UNDER_CONSTRUCTION' ? 'warning' : 'default'}`}>
-                                                    {f.status}
+                                                    {FARM_STATUS_LABELS[f.status] || f.status}
                                                 </span>
                                             </td>
                                             <td style={{ padding: '12px 14px' }}>{f.commissioning_year || '-'}</td>
@@ -322,7 +337,7 @@ const AdminFarmsRoute = () => {
                             >
                                 <option value="">-- Tất cả trang trại --</option>
                                 {farms.map(f => (
-                                    <option key={f.id} value={f.id}>{f.name} ({f.code})</option>
+                                    <option key={f.id} value={f.id}>{f.name}</option>
                                 ))}
                             </select>
                         </div>
@@ -333,7 +348,7 @@ const AdminFarmsRoute = () => {
                             <thead>
                                 <tr style={{ background: '#f8fafc', color: '#475569', fontSize: '12px', textTransform: 'uppercase' }}>
                                     <th style={{ padding: '12px 14px' }}>Mã tuabin</th>
-                                    <th style={{ padding: '12px 14px' }}>Tên nhận diện</th>
+                                    <th style={{ padding: '12px 14px' }}>Tên tuabin</th>
                                     <th style={{ padding: '12px 14px' }}>Trang trại</th>
                                     <th style={{ padding: '12px 14px' }}>Công suất (MW)</th>
                                     <th style={{ padding: '12px 14px' }}>Loại móng</th>
@@ -356,11 +371,11 @@ const AdminFarmsRoute = () => {
                                             <td style={{ padding: '12px 14px', fontWeight: 600 }}>{t.name || '-'}</td>
                                             <td style={{ padding: '12px 14px' }}>{t.farm_name || `Trang trại #${t.farm}`}</td>
                                             <td style={{ padding: '12px 14px', fontWeight: 600 }}>{(t.capacity_mw || t.predicted_power_mw) ? `${t.capacity_mw || t.predicted_power_mw} MW` : '-'}</td>
-                                            <td style={{ padding: '12px 14px' }}>{t.foundation_type || 'Móng đơn'}</td>
+                                            <td style={{ padding: '12px 14px' }}>{FOUNDATION_LABELS[t.foundation_type] || 'Móng đơn'}</td>
                                             <td style={{ padding: '12px 14px' }}>{t.depth_m ?? '-'}</td>
                                             <td style={{ padding: '12px 14px' }}>
                                                 <span className={`label label-${t.status === 'OPERATING' || t.status === 'OPERATIONAL' ? 'success' : t.status === 'MAINTENANCE' ? 'warning' : 'default'}`}>
-                                                    {t.status}
+                                                    {FARM_STATUS_LABELS[t.status] || t.status}
                                                 </span>
                                             </td>
                                             <td style={{ padding: '12px 14px', textAlign: 'right' }}>
@@ -386,7 +401,7 @@ const AdminFarmsRoute = () => {
                 <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 100000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <div style={{ background: '#ffffff', borderRadius: '12px', width: '560px', maxWidth: '90%', padding: '24px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)' }}>
                         <h3 style={{ marginTop: 0, marginBottom: '18px', fontSize: '18px', fontWeight: 700, color: '#0f172a' }}>
-                            {farmForm.id ? 'Chỉnh sửa trang trại gió' : 'Thêm trang trại gió mới'}
+                            {farmForm.id ? 'Chỉnh sửa trang trại gió' : 'Thêm trang trại gió'}
                         </h3>
                         <form onSubmit={handleSaveFarm}>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
@@ -398,7 +413,7 @@ const AdminFarmsRoute = () => {
                                         value={farmForm.code}
                                         onChange={e => setFarmForm({ ...farmForm, code: e.target.value })}
                                         required
-                                        placeholder="VD: BAC_LIEU_1"
+                                        placeholder="Ví dụ: BAC_LIEU_1"
                                     />
                                 </div>
                                 <div className="form-group">
@@ -409,7 +424,7 @@ const AdminFarmsRoute = () => {
                                         value={farmForm.name}
                                         onChange={e => setFarmForm({ ...farmForm, name: e.target.value })}
                                         required
-                                        placeholder="VD: Điện gió Bạc Liêu GĐ 1"
+                                        placeholder="Ví dụ: Điện gió Bạc Liêu giai đoạn 1"
                                     />
                                 </div>
                             </div>
@@ -449,7 +464,7 @@ const AdminFarmsRoute = () => {
                                     </select>
                                 </div>
                                 <div className="form-group">
-                                    <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Năm vận hành COD</label>
+                                    <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Năm vận hành</label>
                                     <input
                                         type="number"
                                         className="form-control"
@@ -472,12 +487,12 @@ const AdminFarmsRoute = () => {
                 <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 100000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <div style={{ background: '#ffffff', borderRadius: '12px', width: '560px', maxWidth: '90%', padding: '24px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)' }}>
                         <h3 style={{ marginTop: 0, marginBottom: '18px', fontSize: '18px', fontWeight: 700, color: '#0f172a' }}>
-                            Thêm tuabin gió mới
+                            Thêm tuabin gió
                         </h3>
                         <form onSubmit={handleSaveTurbine}>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
                                 <div className="form-group">
-                                    <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Mã vị trí (Point ID) *</label>
+                                    <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Mã vị trí *</label>
                                     <input
                                         type="text"
                                         className="form-control"
@@ -501,7 +516,7 @@ const AdminFarmsRoute = () => {
                             </div>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
                                 <div className="form-group">
-                                    <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Kinh độ (Lon) *</label>
+                                    <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Kinh độ *</label>
                                     <input
                                         type="number"
                                         step="0.000001"
@@ -509,11 +524,11 @@ const AdminFarmsRoute = () => {
                                         value={turbineForm.lon}
                                         onChange={e => setTurbineForm({ ...turbineForm, lon: e.target.value })}
                                         required
-                                        placeholder="VD: 105.748"
+                                        placeholder="Ví dụ: 105.748"
                                     />
                                 </div>
                                 <div className="form-group">
-                                    <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Vĩ độ (Lat) *</label>
+                                    <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Vĩ độ *</label>
                                     <input
                                         type="number"
                                         step="0.000001"
@@ -521,7 +536,7 @@ const AdminFarmsRoute = () => {
                                         value={turbineForm.lat}
                                         onChange={e => setTurbineForm({ ...turbineForm, lat: e.target.value })}
                                         required
-                                        placeholder="VD: 9.245"
+                                        placeholder="Ví dụ: 9.245"
                                     />
                                 </div>
                             </div>
@@ -537,15 +552,15 @@ const AdminFarmsRoute = () => {
                                     />
                                 </div>
                                 <div className="form-group">
-                                    <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Loại kết cấu móng</label>
+                                    <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Loại móng</label>
                                     <select
                                         className="form-control"
                                         value={turbineForm.foundation_type}
                                         onChange={e => setTurbineForm({ ...turbineForm, foundation_type: e.target.value })}
                                     >
-                                        <option value="MONOPILE">Móng đơn (Monopile)</option>
-                                        <option value="JACKET">Móng chân đế (Jacket)</option>
-                                        <option value="FLOATING">Móng nổi (Floating)</option>
+                                        <option value="MONOPILE">Móng đơn</option>
+                                        <option value="JACKET">Móng chân đế</option>
+                                        <option value="FLOATING">Móng nổi</option>
                                         <option value="ONSHORE">Móng trụ bê tông trên bờ</option>
                                     </select>
                                 </div>

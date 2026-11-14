@@ -662,7 +662,7 @@ const WindFarmMapContainer = ({
                                 <div style={{ fontSize: '11px', color: '#0369a1', background: '#f0f9ff', padding: '4px 8px', borderRadius: '4px', marginBottom: '6px', border: '1px solid #bae6fd', display: 'flex', alignItems: 'center', gap: '5px' }}>
                                     <i className="fa fa-crosshairs" />
                                     <span>
-                                        Gần {popupPoint.closestPoint.name || `Tua-bin #${popupPoint.closestPoint.point_id || popupPoint.closestPoint.id}`} (cách ~{popupPoint._closestDistanceKm} km)
+                                        Gần {popupPoint.closestPoint.name || `tuabin #${popupPoint.closestPoint.point_id || popupPoint.closestPoint.id}`}, cách khoảng {popupPoint._closestDistanceKm} km
                                     </span>
                                 </div>
                             )}
@@ -673,7 +673,7 @@ const WindFarmMapContainer = ({
                                     <strong style={{ color: '#b91c1c' }}>{Number(popupPoint.predicted_power_mw || 0).toFixed(2)} MW</strong>
                                 </div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span><i className="fa fa-dashboard" style={{ width: '14px', color: '#0284c7' }} /> Tốc độ gió 100m:</span>
+                                    <span><i className="fa fa-dashboard" style={{ width: '14px', color: '#0284c7' }} /> Tốc độ gió ở 100 m:</span>
                                     <strong style={{ color: '#0369a1' }}>{Number(popupPoint.wind_speed_100m || 0).toFixed(2)} m/s</strong>
                                 </div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -689,7 +689,7 @@ const WindFarmMapContainer = ({
                         <>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9', paddingBottom: '6px', marginBottom: '6px' }}>
                                 <strong style={{ color: '#1e3a8a', fontSize: '13px' }}>
-                                    Điểm tua-bin #{popupPoint.point_id || popupPoint.id}
+                                    Điểm tuabin #{popupPoint.point_id || popupPoint.id}
                                 </strong>
                                 <button
                                     type="button"
@@ -703,7 +703,7 @@ const WindFarmMapContainer = ({
                             {popupPoint._isSnapped && (
                                 <div style={{ fontSize: '11px', color: '#0369a1', background: '#f0f9ff', padding: '4px 8px', borderRadius: '4px', marginBottom: '6px', border: '1px solid #bae6fd', display: 'flex', alignItems: 'center', gap: '5px' }}>
                                     <i className="fa fa-crosshairs" />
-                                    <span>Khảo sát gần nhất (cách ~{popupPoint._snapDistanceKm} km)</span>
+                                    <span>Khảo sát gần nhất, cách khoảng {popupPoint._snapDistanceKm} km</span>
                                 </div>
                             )}
 
@@ -715,10 +715,10 @@ const WindFarmMapContainer = ({
                                     <strong>Hệ số công suất:</strong> {Number(popupPoint.capacity_factor || 0).toFixed(2)}%
                                 </div>
                                 <div>
-                                    <strong>Độ sâu GEBCO:</strong> {Number(popupPoint.depth_m || 0).toFixed(0)} m ({popupPoint.foundation_type || (popupPoint.depth_m <= 50 ? 'Móng cố định' : 'Móng nổi')})
+                                    <strong>Độ sâu đáy biển:</strong> {Number(popupPoint.depth_m || 0).toFixed(0)} m, {popupPoint.foundation_type || (popupPoint.depth_m <= 50 ? 'móng cố định' : 'móng nổi')}
                                 </div>
                                 <div>
-                                    <strong>Gió 100m:</strong> {Number(popupPoint.wind_speed_100m || 0).toFixed(2)} m/s ({Number(popupPoint.wind_direction || 0).toFixed(1)}°)
+                                    <strong>Gió ở 100 m:</strong> {Number(popupPoint.wind_speed_100m || 0).toFixed(2)} m/s, hướng {Number(popupPoint.wind_direction || 0).toFixed(1)}°
                                 </div>
                                 {popupPoint.zone && (
                                     <div>

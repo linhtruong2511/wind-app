@@ -66,7 +66,7 @@ const WindStationPlotlyChart = ({
                 y: (summaryResults || []).map(item => item[`${variable}_avg`]),
                 type: 'scatter',
                 mode: 'lines+markers',
-                name: 'Trung bình (Avg)',
+                name: 'Trung bình',
                 line: { color: currentVar.color, width: 2.5 }
             },
             {
@@ -74,7 +74,7 @@ const WindStationPlotlyChart = ({
                 y: (summaryResults || []).map(item => item[`${variable}_median`]),
                 type: 'scatter',
                 mode: 'lines',
-                name: 'Trung vị (Median)',
+                name: 'Trung vị',
                 line: { color: '#059669', width: 2, dash: 'dash' }
             },
             {
@@ -82,7 +82,7 @@ const WindStationPlotlyChart = ({
                 y: (summaryResults || []).map(item => item[`${variable}_max`]),
                 type: 'scatter',
                 mode: 'lines+markers',
-                name: 'Cực đại (Max)',
+                name: 'Cực đại',
                 line: { color: '#dc2626', width: 1.5 }
             },
             {
@@ -90,7 +90,7 @@ const WindStationPlotlyChart = ({
                 y: (summaryResults || []).map(item => item[`${variable}_min`]),
                 type: 'scatter',
                 mode: 'lines+markers',
-                name: 'Cực tiểu (Min)',
+                name: 'Cực tiểu',
                 line: { color: '#0284c7', width: 1.5 }
             }
         ];

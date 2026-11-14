@@ -22,7 +22,7 @@ const WindFarmFilterBar = ({ filters, onFilterChange, onResetFilters }) => {
                         <FormControl
                             type="text"
                             name="search"
-                            placeholder="Nhập mã điểm (VD: 12)..."
+                            placeholder="Nhập mã điểm, ví dụ: 12"
                             value={filters.search || ''}
                             onChange={(e) => onFilterChange('search', e.target.value)}
                             style={{ height: '30px', fontSize: '12px' }}
@@ -45,7 +45,7 @@ const WindFarmFilterBar = ({ filters, onFilterChange, onResetFilters }) => {
                             <option value="25">≥ 25 MW</option>
                             <option value="35">≥ 35 MW</option>
                             <option value="45">≥ 45 MW</option>
-                            <option value="50">≥ 50 MW (Rất cao)</option>
+                            <option value="50">≥ 50 MW, rất cao</option>
                         </FormControl>
                     </FormGroup>
                 </Col>
@@ -53,7 +53,7 @@ const WindFarmFilterBar = ({ filters, onFilterChange, onResetFilters }) => {
                 <Col xs={6} sm={4}>
                     <FormGroup controlId="filterFoundation" style={{ marginBottom: '6px' }}>
                         <ControlLabel style={{ fontSize: '11px', fontWeight: 600 }}>
-                            <i className="fa fa-anchor" /> Loại móng / Độ sâu
+                            <i className="fa fa-anchor" /> Loại móng và độ sâu
                         </ControlLabel>
                         <FormControl
                             componentClass="select"
@@ -62,8 +62,8 @@ const WindFarmFilterBar = ({ filters, onFilterChange, onResetFilters }) => {
                             style={{ height: '30px', fontSize: '12px' }}
                         >
                             <option value="">Tất cả độ sâu</option>
-                            <option value="fixed">Móng cố định (≤ 50m)</option>
-                            <option value="floating">{"Móng nổi (> 50m)"}</option>
+                            <option value="fixed">Móng cố định, sâu tới 50 m</option>
+                            <option value="floating">Móng nổi, sâu trên 50 m</option>
                         </FormControl>
                     </FormGroup>
                 </Col>

@@ -17,6 +17,12 @@ import {
 } from '../../api/admin';
 import CDSQueryBuilderModal from '../../components/admin/CDSQueryBuilderModal';
 
+const RUN_STATUS_LABELS = {
+    RUNNING: 'Đang chạy',
+    SUCCESS: 'Thành công',
+    FAILED: 'Thất bại'
+};
+
 const AdminCdsRoute = () => {
     const [activeTab, setActiveTab] = useState('credentials'); // 'credentials' | 'jobs' | 'runs'
     const [credentials, setCredentials] = useState([]);
@@ -89,7 +95,7 @@ const AdminCdsRoute = () => {
             : createCDSCredential(payload);
 
         promise.then(() => {
-            setFeedback({ type: 'success', message: 'Lưu tài khoản xác thực CDS thành công!' });
+            setFeedback({ type: 'success', message: 'Lưu tài khoản Copernicus thành công!' });
             setShowCredModal(false);
             loadAll();
         }).catch(err => {
@@ -98,7 +104,7 @@ const AdminCdsRoute = () => {
     };
 
     const handleDeleteCred = (id) => {
-        if (window.confirm('Bạn có chắc chắn muốn xóa thông tin xác thực CDS này?')) {
+        if (window.confirm('Bạn có chắc chắn muốn xóa tài khoản này?')) {
             deleteCDSCredential(id).then(() => {
                 setFeedback({ type: 'success', message: 'Đã xóa tài khoản thành công.' });
                 loadAll();
@@ -109,7 +115,7 @@ const AdminCdsRoute = () => {
     };
 
     const handleTestCred = (id) => {
-        setFeedback({ type: 'info', message: 'Đang kiểm tra kết nối tới dịch vụ Copernicus CDS...' });
+        setFeedback({ type: 'info', message: 'Đang kiểm tra kết nối tới Copernicus...' });
         testCDSConnection(id).then(res => {
             setFeedback({ type: 'success', message: `Kết nối thành công! ${res.message || ''}` });
         }).catch(err => {
@@ -135,7 +141,7 @@ const AdminCdsRoute = () => {
             : createCDSJob(payload);
 
         promise.then(() => {
-            setFeedback({ type: 'success', message: 'Lưu tác vụ thu thập CDS thành công!' });
+            setFeedback({ type: 'success', message: 'Lưu tác vụ thu thập dữ liệu thành công!' });
             setShowJobModal(false);
             loadAll();
         }).catch(err => {
@@ -155,9 +161,9 @@ const AdminCdsRoute = () => {
     };
 
     const handleRunJob = (id) => {
-        if (window.confirm('Kích hoạt tải dữ liệu ngay bây giờ bằng Celery worker?')) {
-            runCDSJob(id).then(res => {
-                setFeedback({ type: 'success', message: `Đã đưa tác vụ vào hàng đợi thành công! (Task ID: ${res.task_id})` });
+        if (window.confirm('Chạy tải dữ liệu ngay bây giờ?')) {
+            runCDSJob(id).then(() => {
+                setFeedback({ type: 'success', message: 'Đã đưa tác vụ vào hàng đợi thành công!' });
                 loadAll();
             }).catch(err => {
                 setFeedback({ type: 'danger', message: 'Không thể kích hoạt: ' + (err.response?.data?.detail || err.message) });
@@ -169,8 +175,8 @@ const AdminCdsRoute = () => {
         setFeedback({
             type: 'info',
             message: runImmediately
-                ? 'Đang tạo tác vụ và kích hoạt Celery Worker tải dữ liệu...'
-                : 'Đang lưu tác vụ thu thập CDS...'
+                ? 'Đang tạo tác vụ và bắt đầu tải dữ liệu...'
+                : 'Đang lưu tác vụ thu thập dữ liệu...'
         });
         setShowBuilderModal(false);
 
@@ -178,11 +184,11 @@ const AdminCdsRoute = () => {
             if (runImmediately) {
                 setFeedback({
                     type: 'success',
-                    message: `Đã kích hoạt tải dữ liệu CDS thành công! (Task ID: ${res.task_id || 'queued'}). Dữ liệu đang được tải và nạp vào Dataset.`
+                    message: 'Đã bắt đầu tải dữ liệu ERA5. Dữ liệu sẽ được tải và nạp vào bộ dữ liệu.'
                 });
                 setActiveTab('runs');
             } else {
-                setFeedback({ type: 'success', message: 'Lưu tác vụ thu thập CDS thành công!' });
+                setFeedback({ type: 'success', message: 'Lưu tác vụ thu thập dữ liệu thành công!' });
             }
             loadAll();
         }).catch(err => {
@@ -196,10 +202,10 @@ const AdminCdsRoute = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                 <div>
                     <h2 style={{ fontSize: '24px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
-                        Quản lý Thu thập Dữ liệu CDS ERA5
+                        Quản lý thu thập dữ liệu ERA5
                     </h2>
                     <p style={{ color: '#64748b', fontSize: '14px', margin: '4px 0 0 0' }}>
-                        Cấu hình API Key Copernicus Climate Data Store, tác vụ tự động tải reanalysis và theo dõi tiến trình.
+                        Cấu hình tài khoản Copernicus, thiết lập tác vụ tải dữ liệu tự động và theo dõi tiến trình.
                     </p>
                 </div>
                 <div style={{ display: 'flex', gap: '10px' }}>
@@ -212,7 +218,7 @@ const AdminCdsRoute = () => {
                             className="btn btn-primary"
                             style={{ display: 'flex', alignItems: 'center', gap: '6px', borderRadius: '6px', fontWeight: 600 }}
                         >
-                            <i className="fa fa-plus"></i>Thêm tài khoản CDS
+                            <i className="fa fa-plus"></i>Thêm tài khoản
                         </button>
                     )}
                     {activeTab === 'jobs' && (
@@ -221,7 +227,7 @@ const AdminCdsRoute = () => {
                             className="btn btn-primary"
                             style={{ display: 'flex', alignItems: 'center', gap: '6px', borderRadius: '6px', fontWeight: 600 }}
                         >
-                            <i className="fa fa-magic"></i>Tạo tác vụ tải CDS (Wizard)
+                            <i className="fa fa-magic"></i>Tạo tác vụ tải dữ liệu
                         </button>
                     )}
                     <button
@@ -304,9 +310,9 @@ const AdminCdsRoute = () => {
                             <thead>
                                 <tr style={{ background: '#f8fafc', color: '#475569', fontSize: '12px', textTransform: 'uppercase' }}>
                                     <th style={{ padding: '12px 14px' }}>Mã</th>
-                                    <th style={{ padding: '12px 14px' }}>Tên nhận diện</th>
-                                    <th style={{ padding: '12px 14px' }}>Dịch vụ URL</th>
-                                    <th style={{ padding: '12px 14px' }}>Khóa API</th>
+                                    <th style={{ padding: '12px 14px' }}>Tên tài khoản</th>
+                                    <th style={{ padding: '12px 14px' }}>Địa chỉ dịch vụ</th>
+                                    <th style={{ padding: '12px 14px' }}>Khóa truy cập</th>
                                     <th style={{ padding: '12px 14px' }}>Kích hoạt</th>
                                     <th style={{ padding: '12px 14px', textAlign: 'right' }}>Thao tác</th>
                                 </tr>
@@ -315,7 +321,7 @@ const AdminCdsRoute = () => {
                                 {credentials.length === 0 ? (
                                     <tr>
                                         <td colSpan="6" style={{ textAlign: 'center', padding: '24px', color: '#94a3b8' }}>
-                                            Chưa cấu hình tài khoản CDS Copernicus nào.
+                                            Chưa có tài khoản Copernicus nào.
                                         </td>
                                     </tr>
                                 ) : (
@@ -337,9 +343,9 @@ const AdminCdsRoute = () => {
                                                     onClick={() => handleTestCred(c.id)}
                                                     className="btn btn-xs btn-default"
                                                     style={{ marginRight: '6px' }}
-                                                    title="Kiểm tra kết nối tới máy chủ CDS"
+                                                    title="Kiểm tra kết nối"
                                                 >
-                                                    <i className="fa fa-plug" style={{ color: '#0284c7', marginRight: '4px' }}></i>Test
+                                                    <i className="fa fa-plug" style={{ color: '#0284c7', marginRight: '4px' }}></i>Kiểm tra
                                                 </button>
                                                 <button
                                                     onClick={() => {
@@ -390,7 +396,7 @@ const AdminCdsRoute = () => {
                                 {jobs.length === 0 ? (
                                     <tr>
                                         <td colSpan="8" style={{ textAlign: 'center', padding: '24px', color: '#94a3b8' }}>
-                                            Chưa có tác vụ thu thập dữ liệu CDS nào.
+                                            Chưa có tác vụ thu thập dữ liệu nào.
                                         </td>
                                     </tr>
                                 ) : (
@@ -407,7 +413,7 @@ const AdminCdsRoute = () => {
                                             <td style={{ padding: '12px 14px' }}>{j.lag_days} ngày</td>
                                             <td style={{ padding: '12px 14px' }}>
                                                 <span className={`label label-${j.status === 'RUNNING' ? 'primary' : j.status === 'SUCCESS' ? 'success' : j.status === 'FAILED' ? 'danger' : 'default'}`}>
-                                                    {j.status}
+                                                    {RUN_STATUS_LABELS[j.status] || j.status}
                                                 </span>
                                             </td>
                                             <td style={{ padding: '12px 14px', color: '#64748b' }}>
@@ -418,7 +424,7 @@ const AdminCdsRoute = () => {
                                                     onClick={() => handleRunJob(j.id)}
                                                     className="btn btn-xs btn-success"
                                                     style={{ marginRight: '6px' }}
-                                                    title="Kích hoạt tải ngay"
+                                                    title="Chạy tải dữ liệu ngay"
                                                 >
                                                     <i className="fa fa-play" style={{ marginRight: '4px' }}></i>Chạy
                                                 </button>
@@ -471,7 +477,7 @@ const AdminCdsRoute = () => {
                                     <th style={{ padding: '12px 14px' }}>Bắt đầu</th>
                                     <th style={{ padding: '12px 14px' }}>Kết thúc</th>
                                     <th style={{ padding: '12px 14px' }}>Trạng thái</th>
-                                    <th style={{ padding: '12px 14px' }}>Granules</th>
+                                    <th style={{ padding: '12px 14px' }}>Số bản ghi</th>
                                     <th style={{ padding: '12px 14px' }}>Thông tin lỗi</th>
                                 </tr>
                             </thead>
@@ -479,7 +485,7 @@ const AdminCdsRoute = () => {
                                 {runs.length === 0 ? (
                                     <tr>
                                         <td colSpan="7" style={{ textAlign: 'center', padding: '24px', color: '#94a3b8' }}>
-                                            Chưa có lượt chạy CDS nào được ghi nhận.
+                                            Chưa có lượt tải nào được ghi nhận.
                                         </td>
                                     </tr>
                                 ) : (
@@ -491,7 +497,7 @@ const AdminCdsRoute = () => {
                                             <td style={{ padding: '12px 14px', color: '#64748b' }}>{r.finished_at ? new Date(r.finished_at).toLocaleString('vi-VN') : '-'}</td>
                                             <td style={{ padding: '12px 14px' }}>
                                                 <span className={`label label-${r.status === 'SUCCESS' ? 'success' : r.status === 'RUNNING' ? 'primary' : 'danger'}`}>
-                                                    {r.status}
+                                                    {RUN_STATUS_LABELS[r.status] || r.status}
                                                 </span>
                                             </td>
                                             <td style={{ padding: '12px 14px', fontWeight: 600 }}>{r.records_ingested ?? 0}</td>
@@ -512,11 +518,11 @@ const AdminCdsRoute = () => {
                 <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 100000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <div style={{ background: '#ffffff', borderRadius: '12px', width: '500px', maxWidth: '90%', padding: '24px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)' }}>
                         <h3 style={{ marginTop: 0, marginBottom: '18px', fontSize: '18px', fontWeight: 700, color: '#0f172a' }}>
-                            {credForm.id ? 'Chỉnh sửa tài khoản CDS' : 'Thêm tài khoản CDS Copernicus'}
+                            {credForm.id ? 'Chỉnh sửa tài khoản' : 'Thêm tài khoản Copernicus'}
                         </h3>
                         <form onSubmit={handleSaveCred}>
                             <div className="form-group" style={{ marginBottom: '16px' }}>
-                                <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Tên nhận diện *</label>
+                                <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Tên tài khoản *</label>
                                 <input
                                     type="text"
                                     className="form-control"
@@ -527,7 +533,7 @@ const AdminCdsRoute = () => {
                                 />
                             </div>
                             <div className="form-group" style={{ marginBottom: '16px' }}>
-                                <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Dịch vụ CDS URL *</label>
+                                <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Địa chỉ dịch vụ *</label>
                                 <input
                                     type="text"
                                     className="form-control"
@@ -537,14 +543,14 @@ const AdminCdsRoute = () => {
                                 />
                             </div>
                             <div className="form-group" style={{ marginBottom: '16px' }}>
-                                <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Khóa API (Personal Access Token) {credForm.id ? '(Để trống nếu không đổi)' : '*'}</label>
+                                <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>{credForm.id ? 'Khóa truy cập, để trống nếu không đổi' : 'Khóa truy cập *'}</label>
                                 <input
                                     type="password"
                                     className="form-control"
                                     value={credForm.api_key}
                                     onChange={e => setCredForm({ ...credForm, api_key: e.target.value })}
                                     required={!credForm.id}
-                                    placeholder="Nhập khóa CDS token..."
+                                    placeholder="Nhập khóa truy cập..."
                                 />
                             </div>
                             <div className="checkbox" style={{ marginBottom: '20px' }}>
@@ -553,7 +559,7 @@ const AdminCdsRoute = () => {
                                         type="checkbox"
                                         checked={credForm.is_active}
                                         onChange={e => setCredForm({ ...credForm, is_active: e.target.checked })}
-                                    /> Kích hoạt sử dụng tài khoản này
+                                    /> Cho phép sử dụng tài khoản này
                                 </label>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
@@ -570,7 +576,7 @@ const AdminCdsRoute = () => {
                 <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 100000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <div style={{ background: '#ffffff', borderRadius: '12px', width: '560px', maxWidth: '90%', padding: '24px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)' }}>
                         <h3 style={{ marginTop: 0, marginBottom: '18px', fontSize: '18px', fontWeight: 700, color: '#0f172a' }}>
-                            {jobForm.id ? 'Chỉnh sửa tác vụ thu thập CDS' : 'Tạo mới tác vụ thu thập CDS'}
+                            {jobForm.id ? 'Chỉnh sửa tác vụ thu thập dữ liệu' : 'Tạo tác vụ thu thập dữ liệu'}
                         </h3>
                         <form onSubmit={handleSaveJob}>
                             <div className="form-group" style={{ marginBottom: '14px' }}>
@@ -581,12 +587,12 @@ const AdminCdsRoute = () => {
                                     value={jobForm.name}
                                     onChange={e => setJobForm({ ...jobForm, name: e.target.value })}
                                     required
-                                    placeholder="VD: Cập nhật ERA5 Biển Đông hàng ngày"
+                                    placeholder="Ví dụ: Cập nhật ERA5 khu vực Biển Đông hàng ngày"
                                 />
                             </div>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
                                 <div className="form-group">
-                                    <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Tài khoản CDS *</label>
+                                    <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Tài khoản Copernicus *</label>
                                     <select
                                         className="form-control"
                                         value={jobForm.credential}
@@ -606,12 +612,12 @@ const AdminCdsRoute = () => {
                                         required
                                     >
                                         <option value="">-- Chọn bộ dữ liệu --</option>
-                                        {datasets.map(d => <option key={d.id} value={d.id}>{d.name} ({d.code})</option>)}
+                                        {datasets.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                                     </select>
                                 </div>
                             </div>
                             <div className="form-group" style={{ marginBottom: '14px' }}>
-                                <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Mã Dataset Copernicus *</label>
+                                <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Tên bộ dữ liệu trên Copernicus *</label>
                                 <input
                                     type="text"
                                     className="form-control"
@@ -622,18 +628,18 @@ const AdminCdsRoute = () => {
                             </div>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
                                 <div className="form-group">
-                                    <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Chế độ thực thi</label>
+                                    <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Chế độ chạy</label>
                                     <select
                                         className="form-control"
                                         value={jobForm.mode}
                                         onChange={e => setJobForm({ ...jobForm, mode: e.target.value })}
                                     >
-                                        <option value="ONCE">Chạy 1 lần (Thủ công)</option>
-                                        <option value="RECURRING">Lặp lại theo lịch (Celery Beat)</option>
+                                        <option value="ONCE">Chạy một lần (thủ công)</option>
+                                        <option value="RECURRING">Lặp lại theo lịch</option>
                                     </select>
                                 </div>
                                 <div className="form-group">
-                                    <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Độ trễ số liệu (ngày)</label>
+                                    <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Độ trễ dữ liệu (ngày)</label>
                                     <input
                                         type="number"
                                         className="form-control"
@@ -649,7 +655,7 @@ const AdminCdsRoute = () => {
                                         type="checkbox"
                                         checked={jobForm.auto_latest}
                                         onChange={e => setJobForm({ ...jobForm, auto_latest: e.target.checked })}
-                                    /> Tự động tải từ granule mới nhất đến hôm nay (trừ độ trễ)
+                                    /> Tự động tải từ dữ liệu mới nhất đến hôm nay (trừ độ trễ)
                                 </label>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>

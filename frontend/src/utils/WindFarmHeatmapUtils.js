@@ -20,7 +20,7 @@ export const HEATMAP_METRICS = {
     },
     wind_speed_100m: {
         id: 'wind_speed_100m',
-        label: 'Tốc độ gió 100m',
+        label: 'Tốc độ gió ở 100 m',
         unit: 'm/s',
         icon: 'fa-dashboard',
         min: 4.0,
@@ -30,12 +30,12 @@ export const HEATMAP_METRICS = {
     },
     depth_m: {
         id: 'depth_m',
-        label: 'Độ sâu địa hình (GEBCO)',
+        label: 'Độ sâu địa hình',
         unit: 'm',
         icon: 'fa-tint',
         min: 10,
         max: 100,
-        ticks: ['10m (Nông)', '30m', '50m (Móng cố định)', '75m', '≥ 100m (Sâu)'],
+        ticks: ['10 m, nông', '30 m', '50 m, móng cố định', '75 m', '≥ 100 m, sâu'],
         gradient: ['#a5f3fc', '#38bdf8', '#0284c7', '#1e3a8a', '#312e81']
     }
 };

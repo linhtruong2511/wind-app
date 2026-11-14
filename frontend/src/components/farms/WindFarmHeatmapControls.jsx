@@ -61,7 +61,7 @@ const WindFarmHeatmapControls = ({
                         onClick={() => onViewModeChange('heatmap')}
                         style={{ flex: 1 }}
                     >
-                        Heatmap
+                        Bản đồ nhiệt
                     </Button>
                     <Button
                         bsStyle={viewMode === 'points' ? 'primary' : 'default'}
@@ -86,7 +86,7 @@ const WindFarmHeatmapControls = ({
                                 bsStyle={method === 'kde' ? 'primary' : 'default'}
                                 onClick={() => onMethodChange('kde')}
                                 style={{ flex: 1, padding: '3px 2px', fontSize: '10.5px' }}
-                                title="Kernel Density Estimation - Mật độ tập trung"
+                                title="Mật độ tập trung của các điểm"
                             >
                                 KDE
                             </Button>
@@ -94,7 +94,7 @@ const WindFarmHeatmapControls = ({
                                 bsStyle={method === 'idw' ? 'primary' : 'default'}
                                 onClick={() => onMethodChange('idw')}
                                 style={{ flex: 1, padding: '3px 2px', fontSize: '10.5px' }}
-                                title="Inverse Distance Weighting - Khoảng cách nghịch đảo"
+                                title="Nội suy theo khoảng cách nghịch đảo"
                             >
                                 IDW
                             </Button>
@@ -102,22 +102,22 @@ const WindFarmHeatmapControls = ({
                                 bsStyle={method === 'kriging' ? 'primary' : 'default'}
                                 onClick={() => onMethodChange('kriging')}
                                 style={{ flex: 1, padding: '3px 2px', fontSize: '10.5px' }}
-                                title="Ordinary Kriging - Nội suy địa thống kê tối ưu"
+                                title="Nội suy địa thống kê tối ưu"
                             >
                                 Kriging
                             </Button>
                         </ButtonGroup>
                         <div style={{ fontSize: '10px', color: '#64748b', marginTop: '3px', fontStyle: 'italic', lineHeight: '1.2' }}>
-                            {method === 'kde' && 'Mật độ điểm nhiệt (Gaussian blur)'}
-                            {method === 'idw' && 'Khoảng cách nghịch đảo (1/d²)'}
-                            {method === 'kriging' && 'Nội suy địa thống kê (BLUE)'}
+                            {method === 'kde' && 'Mật độ điểm nhiệt, làm mịn tự nhiên'}
+                            {method === 'idw' && 'Khoảng cách nghịch đảo, ảnh hưởng giảm nhanh theo khoảng cách'}
+                            {method === 'kriging' && 'Nội suy địa thống kê, tối ưu theo sai số'}
                         </div>
                     </div>
 
                     {/* 3. Chọn chỉ số nhiệt */}
                     <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '6px' }}>
                         <div style={{ fontSize: '11px', fontWeight: 600, color: '#475569', marginBottom: '4px', textTransform: 'uppercase' }}>
-                            Chỉ số nhiệt
+                            Chỉ số hiển thị
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                             {Object.values(HEATMAP_METRICS).map((m) => {
@@ -147,7 +147,7 @@ const WindFarmHeatmapControls = ({
                                             <i className={`fa ${m.icon}`} style={{ width: '14px', color: isActive ? '#0284c7' : '#64748b' }} />
                                             {m.label}
                                         </span>
-                                        <span style={{ fontSize: '10px', color: '#64748b' }}>({m.unit})</span>
+                                        <span style={{ fontSize: '10px', color: '#64748b' }}>{m.unit}</span>
                                     </button>
                                 );
                             })}
@@ -158,7 +158,7 @@ const WindFarmHeatmapControls = ({
                     <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '6px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
                             <span style={{ fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase' }}>
-                                Độ mờ đục Heatmap
+                                Độ mờ đục bản đồ nhiệt
                             </span>
                             <span style={{ fontSize: '11px', fontWeight: 600, color: '#0284c7' }}>
                                 {Math.round(opacity * 100)}%

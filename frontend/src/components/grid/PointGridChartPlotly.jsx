@@ -106,7 +106,7 @@ const PointGridChartPlotly = ({ point, onClose }) => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                 <h4 style={{ margin: 0, fontSize: '13px', color: '#1e293b', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <i className="fa fa-line-chart" style={{ color: '#2563eb' }} />
-                    Dự báo Lưới tại Điểm
+                    Dự báo tại điểm đã chọn
                 </h4>
                 <button
                     type="button"

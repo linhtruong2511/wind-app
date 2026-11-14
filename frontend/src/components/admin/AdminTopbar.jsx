@@ -5,11 +5,11 @@ import { useLocation, NavLink } from 'react-router-dom';
 const ROUTE_TITLES = {
     '/admin': 'Tổng quan',
     '/admin/dashboard': 'Tổng quan hệ thống',
-    '/admin/cds': 'Quản lý thu thập CDS ERA5',
-    '/admin/rasters': 'Quản lý Dữ liệu Lưới & Tệp NetCDF',
-    '/admin/stations': 'Quản lý Trạm đo & Số liệu quan trắc',
-    '/admin/farms': 'Quản lý Trang trại gió & Tuabin',
-    '/admin/datasets': 'Bộ dữ liệu & Phân quyền truy cập',
+    '/admin/cds': 'Quản lý thu thập dữ liệu ERA5',
+    '/admin/rasters': 'Quản lý dữ liệu lưới',
+    '/admin/stations': 'Quản lý trạm đo và số liệu quan trắc',
+    '/admin/farms': 'Quản lý trang trại gió và tuabin',
+    '/admin/datasets': 'Bộ dữ liệu và phân quyền truy cập',
 };
 
 const AdminTopbar = ({ collapsed, onToggleSidebar, config }) => {

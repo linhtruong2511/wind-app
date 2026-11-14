@@ -2,6 +2,13 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { Label, Button } from 'react-bootstrap';
 
+const STATION_TYPE_LABELS = {
+    SYNOP: 'Bề mặt',
+    SURFACE: 'Bề mặt',
+    MET_MAST: 'Cột khí tượng',
+    BUOY: 'Phao biển'
+};
+
 const WindStationRow = ({ item, onSelectStation, onViewDetail }) => {
     const stationName = item.properties?.name || item.name || `Trạm #${item.id}`;
     const stationCode = item.properties?.station_code || item.station_code || 'N/A';
@@ -33,9 +40,9 @@ const WindStationRow = ({ item, onSelectStation, onViewDetail }) => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <strong style={{ fontSize: '13px', color: '#1e40af' }}>{stationName}</strong>
-                    <span style={{ fontSize: '11px', color: '#64748b' }}>({stationCode})</span>
+                    <span style={{ fontSize: '11px', color: '#64748b' }}>Mã: {stationCode}</span>
                     <Label bsStyle={stationType === 'SYNOP' ? 'info' : 'warning'}>
-                        {stationType}
+                        {STATION_TYPE_LABELS[stationType] || stationType}
                     </Label>
                 </div>
                 <div style={{ display: 'flex', gap: '6px' }}>

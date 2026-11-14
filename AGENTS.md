@@ -34,3 +34,4 @@ Never commit credentials or edits to local `.env` files. Use `.env.sample` as th
 1. DO NOT modify the code unless the user's request explicitly instructs you to modify or add code.
 2. Prioritize suggesting possible solutions and approaches, then ask the user whether they want you to modify the code. ONLY begin making code changes after the user agrees
 3. DO NOT use python command in local machine and ALWAY working with python in docker container (ex: `docker compose exec django ...`, `docker compose exec celery ...`) in this project. 
+4. UI text is for end users: no technical names (DuckDB, PostgreSQL, Celery, NetCDF, Dry-run, Staff/Superuser, etc.), sentence case in Vietnamese (only first word and proper nouns capitalized), and minimal parentheses. Use "Ví dụ:" instead of "VD:" and "và" instead of "&".

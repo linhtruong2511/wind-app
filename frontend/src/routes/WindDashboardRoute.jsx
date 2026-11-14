@@ -17,7 +17,7 @@ const WindDashboardRoute = ({ history }) => {
                 <Row style={{ marginBottom: '20px' }}>
                     <Col xs={12}>
                         <h2>
-                            Hệ Thống Phân Tích & Quản Lý Dữ Liệu Lớn Về Trắc Gió
+                            Hệ thống phân tích và quản lý dữ liệu gió
                         </h2>
                         <p style={{ color: '#64748b' }}>
                             Giám sát chuỗi thời gian, thông số tức thời và phân tích số liệu thống kê khí tượng gió trên toàn mạng lưới trạm.
@@ -29,7 +29,7 @@ const WindDashboardRoute = ({ history }) => {
                     <Col xs={12} sm={6} md={4} style={{ marginBottom: '20px' }}>
                         <Panel bsStyle="primary" style={{ height: '100%', minHeight: '180px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                             <div>
-                                <h4><i className="fa fa-map-marker" /> Trạm Quan Trắc</h4>
+                                <h4><i className="fa fa-map-marker" /> Trạm quan trắc</h4>
                                 <p>Theo dõi 170+ trạm khí tượng gió với các chỉ số đo đạc thời gian thực.</p>
                             </div>
                             <div>
@@ -42,8 +42,8 @@ const WindDashboardRoute = ({ history }) => {
                     <Col xs={12} sm={6} md={4} style={{ marginBottom: '20px' }}>
                         <Panel bsStyle="primary" style={{ height: '100%', minHeight: '180px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                             <div>
-                                <h4><i className="fa fa-industry" /> Trang Trại & Tiềm Năng Gió</h4>
-                                <p>Khảo sát 1.000 điểm tiềm năng điện gió ngoài khơi Vịnh Bắc Bộ, dự báo công suất MW và độ sâu đáy biển.</p>
+                                <h4><i className="fa fa-industry" /> Trang trại và tiềm năng gió</h4>
+                                <p>Khảo sát 1.000 điểm tiềm năng điện gió ngoài khơi Vịnh Bắc Bộ, dự báo công suất tính bằng MW và độ sâu đáy biển.</p>
                             </div>
                             <div>
                                 <Button bsStyle="primary" onClick={() => history.push('/farms')}>
@@ -55,8 +55,8 @@ const WindDashboardRoute = ({ history }) => {
                     <Col xs={12} sm={6} md={4} style={{ marginBottom: '20px' }}>
                         <Panel bsStyle="primary" style={{ height: '100%', minHeight: '180px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                             <div>
-                                <h4><i className="fa fa-th" /> Dữ Liệu Lưới & Luồng Gió</h4>
-                                <p>Trực quan hóa trường gió động, heatmap dải màu và dòng hạt khí quyển trên biển.</p>
+                                <h4><i className="fa fa-th" /> Dữ liệu lưới và luồng gió</h4>
+                                <p>Trực quan hóa trường gió động, bản đồ nhiệt và dòng hạt gió trên biển.</p>
                             </div>
                             <div>
                                 <Button bsStyle="primary" onClick={() => history.push('/grid')}>
@@ -68,7 +68,7 @@ const WindDashboardRoute = ({ history }) => {
                     <Col xs={12} sm={6} md={4} style={{ marginBottom: '20px' }}>
                         <Panel bsStyle="primary" style={{ height: '100%', minHeight: '180px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                             <div>
-                                <h4><i className="fa fa-globe" /> Thành lập bản đồ</h4>
+                                <h4><i className="fa fa-globe" /> Lập bản đồ</h4>
                                 <p>Xây dựng bản đồ chuyên đề và trực quan hóa không gian mạng lưới trạm quan trắc.</p>
                             </div>
                             <div>
@@ -81,8 +81,8 @@ const WindDashboardRoute = ({ history }) => {
                     <Col xs={12} sm={6} md={4} style={{ marginBottom: '20px' }}>
                         <Panel bsStyle="primary" style={{ height: '100%', minHeight: '180px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                             <div>
-                                <h4><i className="fa fa-bar-chart" /> Thống Kê Chuyên Sâu</h4>
-                                <p>Tính toán phân vị trung vị, trung bình, cực đại và cực tiểu theo chu kỳ Tháng và Năm.</p>
+                                <h4><i className="fa fa-bar-chart" /> Thống kê chuyên sâu</h4>
+                                <p>Tính phân vị, trung bình, cực đại và cực tiểu theo tháng và theo năm.</p>
                             </div>
                             <div>
                                 <Button bsStyle="primary" onClick={() => history.push('/statistics')}>

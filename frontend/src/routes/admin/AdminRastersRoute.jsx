@@ -58,7 +58,7 @@ const AdminRastersRoute = () => {
         if (!selectedFile) return;
         const name = selectedFile.name.toLowerCase();
         if (!name.endsWith('.nc') && !name.endsWith('.zip')) {
-            alert('Vui lòng chọn tệp .nc hoặc .zip chứa dữ liệu NetCDF.');
+            alert('Vui lòng chọn tệp .nc hoặc .zip chứa dữ liệu lưới.');
             return;
         }
         setFile(selectedFile);
@@ -68,7 +68,7 @@ const AdminRastersRoute = () => {
     const handleUpload = (e) => {
         e.preventDefault();
         if (!file || !selectedDatasetId) {
-            alert('Vui lòng chọn bộ dữ liệu và tệp NetCDF/Zip.');
+            alert('Vui lòng chọn bộ dữ liệu và tệp .nc hoặc .zip.');
             return;
         }
 
@@ -89,7 +89,7 @@ const AdminRastersRoute = () => {
             setUploading(false);
             setUploadResult({
                 success: true,
-                message: res.message || `Nạp thành công ${res.granules || 0} granules!`
+                message: res.message || `Nạp thành công ${res.granules || 0} bản ghi!`
             });
             setFile(null);
             loadGranules();
@@ -97,7 +97,7 @@ const AdminRastersRoute = () => {
             setUploading(false);
             setUploadResult({
                 success: false,
-                message: err.response?.data?.error || err.message || 'Lỗi khi nạp tệp NetCDF.'
+                message: err.response?.data?.error || err.message || 'Lỗi khi nạp tệp dữ liệu.'
             });
         });
     };
@@ -107,10 +107,10 @@ const AdminRastersRoute = () => {
             {/* Header */}
             <div style={{ marginBottom: '24px' }}>
                 <h2 style={{ fontSize: '24px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
-                    Quản lý Dữ liệu Lưới & Tệp NetCDF
+                    Quản lý dữ liệu lưới
                 </h2>
                 <p style={{ color: '#64748b', fontSize: '14px', margin: '4px 0 0 0' }}>
-                    Nạp tệp NetCDF (.nc) hoặc nén (.zip), tách tự động mốc giờ vào RasterGranuleIndex và đồng bộ biến khí quyển.
+                    Nạp tệp .nc hoặc .zip, tự động tách theo từng mốc giờ và đồng bộ các biến khí tượng.
                 </p>
             </div>
 
@@ -118,14 +118,14 @@ const AdminRastersRoute = () => {
             <div style={{ background: '#ffffff', borderRadius: '12px', padding: '24px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', marginBottom: '28px' }}>
                 <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', marginTop: 0, marginBottom: '16px' }}>
                     <i className="fa fa-cloud-upload" style={{ color: '#0284c7', marginRight: '8px' }}></i>
-                    Tải lên Tệp NetCDF / Lưu trữ Zip
+                    Tải lên tệp dữ liệu lưới
                 </h3>
 
                 <form onSubmit={handleUpload}>
                     <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: '20px', alignItems: 'start' }}>
                         <div>
                             <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155', display: 'block', marginBottom: '6px' }}>
-                                Chọn bộ dữ liệu đích *
+                                Chọn bộ dữ liệu *
                             </label>
                             <select
                                 className="form-control"
@@ -135,18 +135,18 @@ const AdminRastersRoute = () => {
                                 required
                             >
                                 {datasets.map(d => (
-                                    <option key={d.id} value={d.id}>{d.name} ({d.code})</option>
+                                    <option key={d.id} value={d.id}>{d.name}</option>
                                 ))}
                             </select>
                             <div style={{ fontSize: '12px', color: '#64748b', marginTop: '6px' }}>
-                                Granule nạp sẽ liên kết với bộ dữ liệu này và tự động trích xuất các biến thành phần (u, v, speed).
+                                Dữ liệu nạp vào sẽ được gắn với bộ dữ liệu này và tự động tách các thành phần gió u, v và tốc độ.
                             </div>
                         </div>
 
                         {/* Drag and drop box */}
                         <div>
                             <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155', display: 'block', marginBottom: '6px' }}>
-                                Tệp NetCDF (.nc) hoặc Zip (.zip) *
+                                Tệp .nc hoặc .zip *
                             </label>
                             <div
                                 onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
@@ -181,7 +181,7 @@ const AdminRastersRoute = () => {
                                     <div>
                                         <div style={{ fontWeight: 600, color: '#0f172a', fontSize: '14px' }}>{file.name}</div>
                                         <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
-                                            {(file.size / (1024 * 1024)).toFixed(2)} MB - Nhấp để chọn tệp khác
+                                            {(file.size / (1024 * 1024)).toFixed(2)} MB. Nhấp để chọn tệp khác.
                                         </div>
                                     </div>
                                 ) : (
@@ -190,7 +190,7 @@ const AdminRastersRoute = () => {
                                             Kéo thả tệp .nc / .zip vào đây hoặc bấm để chọn tệp
                                         </div>
                                         <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px' }}>
-                                            Hỗ trợ tệp mô hình ERA5, WRF, GFS dạng mốc giờ hoặc chuỗi thời gian nhiều mốc
+                                            Hỗ trợ tệp từ các mô hình ERA5, WRF, GFS theo mốc giờ hoặc chuỗi thời gian nhiều mốc
                                         </div>
                                     </div>
                                 )}
@@ -201,7 +201,7 @@ const AdminRastersRoute = () => {
                     {uploading && (
                         <div style={{ marginTop: '18px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#475569', marginBottom: '4px' }}>
-                                <span>Đang tải lên và xử lý phân rã NetCDF...</span>
+                                <span>Đang tải lên và xử lý tệp...</span>
                                 <span>{uploadProgress}%</span>
                             </div>
                             <div className="progress" style={{ height: '8px', borderRadius: '4px', marginBottom: 0 }}>
@@ -243,10 +243,10 @@ const AdminRastersRoute = () => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
                     <div>
                         <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
-                            Danh mục Granule Raster Đã Chỉ mục ({totalGranules})
+                            Danh mục dữ liệu lưới đã nạp ({totalGranules})
                         </h3>
                         <p style={{ fontSize: '13px', color: '#64748b', margin: '4px 0 0 0' }}>
-                            Các file raster đơn lẻ phục vụ kết xuất vector gió động và hiển thị trường nhiệt/tốc độ.
+                            Các tệp dữ liệu lưới phục vụ hiển thị hướng và tốc độ gió trên bản đồ.
                         </p>
                     </div>
                     <div style={{ display: 'flex', gap: '10px' }}>
@@ -277,7 +277,7 @@ const AdminRastersRoute = () => {
                     <table className="table table-hover" style={{ margin: 0 }}>
                         <thead>
                             <tr style={{ background: '#f8fafc', color: '#475569', fontSize: '12px', textTransform: 'uppercase' }}>
-                                <th style={{ padding: '12px 14px' }}>Mã Granule</th>
+                                <th style={{ padding: '12px 14px' }}>Mã bản ghi</th>
                                 <th style={{ padding: '12px 14px' }}>Bộ dữ liệu</th>
                                 <th style={{ padding: '12px 14px' }}>Mã biến</th>
                                 <th style={{ padding: '12px 14px' }}>Mốc thời gian (UTC)</th>
@@ -288,7 +288,7 @@ const AdminRastersRoute = () => {
                             {granules.length === 0 ? (
                                 <tr>
                                     <td colSpan="5" style={{ textAlign: 'center', padding: '24px', color: '#94a3b8' }}>
-                                        {loadingGranules ? 'Đang tải dữ liệu granule...' : 'Chưa có bản ghi granule nào.'}
+                                        {loadingGranules ? 'Đang tải dữ liệu...' : 'Chưa có bản ghi nào.'}
                                     </td>
                                 </tr>
                             ) : (
@@ -316,7 +316,7 @@ const AdminRastersRoute = () => {
                 {totalGranules > pageSize && (
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px' }}>
                         <div style={{ fontSize: '13px', color: '#64748b' }}>
-                            Hiển thị trang {page} / {Math.ceil(totalGranules / pageSize)} ({totalGranules} bản ghi)
+                            Hiển thị trang {page} / {Math.ceil(totalGranules / pageSize)}, tổng {totalGranules} bản ghi
                         </div>
                         <div style={{ display: 'flex', gap: '6px' }}>
                             <button
@@ -331,7 +331,7 @@ const AdminRastersRoute = () => {
                                 onClick={() => setPage(page + 1)}
                                 className="btn btn-default btn-sm"
                             >
-                                Tiếp
+                                Sau
                             </button>
                         </div>
                     </div>

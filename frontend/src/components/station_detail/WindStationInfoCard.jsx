@@ -2,6 +2,13 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { Panel, Label } from 'react-bootstrap';
 
+const STATION_TYPE_LABELS = {
+    SYNOP: 'Bề mặt',
+    SURFACE: 'Bề mặt',
+    MET_MAST: 'Cột khí tượng',
+    BUOY: 'Phao biển'
+};
+
 const WindStationInfoCard = ({ station }) => {
     if (!station) return null;
     const latestObs = station.latest_observation || station.properties?.latest_observation;
@@ -35,7 +42,7 @@ const WindStationInfoCard = ({ station }) => {
                 <div style={{ borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ color: '#64748b' }}>Loại trạm:</span>
                     <Label bsStyle={isSynop ? 'info' : 'warning'}>
-                        {stationType}
+                        {STATION_TYPE_LABELS[stationType] || stationType}
                     </Label>
                 </div>
                 <div style={{ borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between' }}>
@@ -54,8 +61,8 @@ const WindStationInfoCard = ({ station }) => {
                         </div>
                         <div style={{ fontSize: '11px', color: '#334155', lineHeight: '1.6' }}>
                             <div>Thời gian: {latestObs.obs_time ? new Date(latestObs.obs_time).toLocaleString('vi-VN') : 'N/A'}</div>
-                            <div>Gió: <strong>{latestObs.wind_speed ?? 'N/A'} m/s</strong> ({latestObs.wind_dir ?? 'N/A'}°)</div>
-                            <div>Nhiệt độ: <strong>{latestObs.temp_2m ?? 'N/A'} °C</strong> | Độ ẩm: <strong>{latestObs.humidity ?? 'N/A'}%</strong></div>
+                            <div>Gió: <strong>{latestObs.wind_speed ?? 'N/A'} m/s</strong>, hướng {latestObs.wind_dir ?? 'N/A'}°</div>
+                            <div>Nhiệt độ: <strong>{latestObs.temp_2m ?? 'N/A'} °C</strong>, độ ẩm: <strong>{latestObs.humidity ?? 'N/A'}%</strong></div>
                         </div>
                     </div>
                 )}

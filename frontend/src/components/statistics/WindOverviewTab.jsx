@@ -4,13 +4,20 @@ import Plot from 'react-plotly.js';
 import { Row, Col, Panel, FormGroup, FormControl } from 'react-bootstrap';
 
 const METRIC_OPTIONS = [
-    { value: 'wind_speed_max', label: 'Vận tốc gió cực đại (Max Wind Speed - m/s)' },
-    { value: 'wind_speed_avg', label: 'Vận tốc gió trung bình (Avg Wind Speed - m/s)' },
-    { value: 'temp_max', label: 'Nhiệt độ cực đại (Max Temp - °C)' },
-    { value: 'temp_min', label: 'Nhiệt độ cực tiểu (Min Temp - °C)' },
-    { value: 'rain_24h_max', label: 'Lượng mưa 24h lớn nhất (Max Rain - mm)' },
-    { value: 'pressure_min', label: 'Khí áp thấp nhất (Min Pressure - hPa)' }
+    { value: 'wind_speed_max', label: 'Tốc độ gió cực đại (m/s)' },
+    { value: 'wind_speed_avg', label: 'Tốc độ gió trung bình (m/s)' },
+    { value: 'temp_max', label: 'Nhiệt độ cao nhất (°C)' },
+    { value: 'temp_min', label: 'Nhiệt độ thấp nhất (°C)' },
+    { value: 'rain_24h_max', label: 'Lượng mưa 24 giờ lớn nhất (mm)' },
+    { value: 'pressure_min', label: 'Khí áp thấp nhất (hPa)' }
 ];
+
+const STATION_TYPE_LABELS = {
+    SYNOP: 'Bề mặt',
+    SURFACE: 'Bề mặt',
+    MET_MAST: 'Cột khí tượng',
+    BUOY: 'Phao biển'
+};
 
 const WindOverviewTab = ({
     overviewData,
@@ -71,7 +78,7 @@ const WindOverviewTab = ({
     const piePlotData = [
         {
             type: 'pie',
-            labels: stations_by_type.map(t => t.station_type || 'Khác'),
+            labels: stations_by_type.map(t => STATION_TYPE_LABELS[t.station_type] || t.station_type || 'Khác'),
             values: stations_by_type.map(t => t.count),
             hole: 0.45,
             marker: {
@@ -95,15 +102,15 @@ const WindOverviewTab = ({
             <Row style={{ marginBottom: '15px' }}>
                 <Col xs={12} sm={6} md={3}>
                     <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '16px', borderLeft: '4px solid #3b82f6', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-                        <div style={{ color: '#64748b', fontSize: '12px', fontWeight: 600, textTransform: 'uppercase' }}>Tổng Trạm Quan Trắc</div>
+                        <div style={{ color: '#64748b', fontSize: '12px', fontWeight: 600, textTransform: 'uppercase' }}>Tổng số trạm quan trắc</div>
                         <div style={{ fontSize: '24px', fontWeight: 700, color: '#1e293b', marginTop: '4px' }}>
-                            {total_stations} <span style={{ fontSize: '13px', fontWeight: 'normal', color: '#10b981' }}>({active_stations} hoạt động)</span>
+                            {total_stations} <span style={{ fontSize: '13px', fontWeight: 'normal', color: '#10b981' }}>{active_stations} đang hoạt động</span>
                         </div>
                     </div>
                 </Col>
                 <Col xs={12} sm={6} md={3}>
                     <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '16px', borderLeft: '4px solid #10b981', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-                        <div style={{ color: '#64748b', fontSize: '12px', fontWeight: 600, textTransform: 'uppercase' }}>Tổng Bản Ghi Quan Trắc</div>
+                        <div style={{ color: '#64748b', fontSize: '12px', fontWeight: 600, textTransform: 'uppercase' }}>Tổng số bản ghi quan trắc</div>
                         <div style={{ fontSize: '24px', fontWeight: 700, color: '#1e293b', marginTop: '4px' }}>
                             {total_observations.toLocaleString()}
                         </div>
@@ -111,7 +118,7 @@ const WindOverviewTab = ({
                 </Col>
                 <Col xs={12} sm={6} md={3}>
                     <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '16px', borderLeft: '4px solid #ef4444', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-                        <div style={{ color: '#64748b', fontSize: '12px', fontWeight: 600, textTransform: 'uppercase' }}>Gió Cực Đại Ghi Nhận</div>
+                        <div style={{ color: '#64748b', fontSize: '12px', fontWeight: 600, textTransform: 'uppercase' }}>Gió cực đại ghi nhận</div>
                         <div style={{ fontSize: '24px', fontWeight: 700, color: '#dc2626', marginTop: '4px' }}>
                             {max_wind_recorded ? `${max_wind_recorded.wind_speed} m/s` : 'N/A'}
                         </div>
@@ -124,7 +131,7 @@ const WindOverviewTab = ({
                 </Col>
                 <Col xs={12} sm={6} md={3}>
                     <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '16px', borderLeft: '4px solid #8b5cf6', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-                        <div style={{ color: '#64748b', fontSize: '12px', fontWeight: 600, textTransform: 'uppercase' }}>Khoảng Thời Gian Dữ Liệu</div>
+                        <div style={{ color: '#64748b', fontSize: '12px', fontWeight: 600, textTransform: 'uppercase' }}>Khoảng thời gian dữ liệu</div>
                         <div style={{ fontSize: '13px', fontWeight: 600, color: '#1e293b', marginTop: '8px' }}>
                             {minDateStr} &rarr; {maxDateStr}
                         </div>
@@ -137,7 +144,7 @@ const WindOverviewTab = ({
                 <Col xs={12} md={7}>
                     <Panel header={
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontWeight: 600 }}><i className="fa fa-trophy" /> Bảng Xếp Hạng Trạm Quan Trắc</span>
+                            <span style={{ fontWeight: 600 }}><i className="fa fa-trophy" /> Bảng xếp hạng trạm quan trắc</span>
                             <FormGroup style={{ margin: 0, width: '260px' }}>
                                 <FormControl
                                     componentClass="select"
@@ -169,7 +176,7 @@ const WindOverviewTab = ({
                 </Col>
 
                 <Col xs={12} md={5}>
-                    <Panel header={<span style={{ fontWeight: 600 }}><i className="fa fa-pie-chart" /> Cơ Cấu Loại Trạm Quan Trắc</span>}>
+                    <Panel header={<span style={{ fontWeight: 600 }}><i className="fa fa-pie-chart" /> Cơ cấu loại trạm quan trắc</span>}>
                         {stations_by_type.length === 0 ? (
                             <div style={{ height: '360px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>
                                 Không có dữ liệu loại trạm.

@@ -54,10 +54,10 @@ const WindStationDataTable = ({ viewMode, variable, observations, summaryResults
                                 <th>Thời gian</th>
                                 <th>Chỉ số</th>
                                 <th>Số mẫu</th>
-                                <th style={{ color: '#0284c7' }}>Cực tiểu (Min)</th>
-                                <th style={{ color: '#dc2626' }}>Cực đại (Max)</th>
-                                <th>Trung bình (Avg)</th>
-                                <th style={{ color: '#059669' }}>Trung vị (Median)</th>
+                                <th style={{ color: '#0284c7' }}>Cực tiểu</th>
+                                <th style={{ color: '#dc2626' }}>Cực đại</th>
+                                <th>Trung bình</th>
+                                <th style={{ color: '#059669' }}>Trung vị</th>
                             </tr>
                         </thead>
                         <tbody>

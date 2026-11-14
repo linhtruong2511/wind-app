@@ -472,7 +472,7 @@ const WindGridMapContainer = ({
                     }}
                 >
                     <i className="fa fa-spinner fa-spin fa-2x" style={{ color: '#2563eb' }} />
-                    <span>Đang tải ma trận dữ liệu lưới...</span>
+                    <span>Đang tải dữ liệu lưới...</span>
                 </div>
             )}
         </div>

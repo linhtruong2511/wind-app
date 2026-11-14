@@ -5,7 +5,7 @@ import { Row, Col, Panel, FormGroup, FormControl, ControlLabel, Alert } from 're
 
 const COMPARE_METRICS = [
     { value: 'wind_speed', label: 'Tốc độ gió (m/s)', unit: 'm/s' },
-    { value: 'temp_2m', label: 'Nhiệt độ 2m (°C)', unit: '°C' },
+    { value: 'temp_2m', label: 'Nhiệt độ ở 2 m (°C)', unit: '°C' },
     { value: 'pressure', label: 'Khí áp (hPa)', unit: 'hPa' },
     { value: 'humidity', label: 'Độ ẩm (%)', unit: '%' }
 ];
@@ -39,7 +39,7 @@ const WindMultiStationTab = ({
         return (
             <Alert bsStyle="info" style={{ marginTop: '10px' }}>
                 <h4><i className="fa fa-info-circle" /> Chưa chọn trạm quan trắc</h4>
-                <p>Vui lòng chọn từ 1 đến 10 trạm trong <strong>Bộ Lọc Phân Tích</strong> phía trên để so sánh đối chiếu số liệu.</p>
+                <p>Vui lòng chọn từ 1 đến 10 trạm trong <strong>bộ lọc phân tích</strong> phía trên để so sánh đối chiếu số liệu.</p>
             </Alert>
         );
     }
@@ -144,8 +144,8 @@ const WindMultiStationTab = ({
                                 onChange={(e) => setCompareInterval(e.target.value)}
                                 style={{ height: '34px', fontSize: '12px' }}
                             >
-                                <option value="month">Gom nhóm theo Tháng (Monthly Avg)</option>
-                                <option value="day">Gom nhóm theo Ngày (Daily Avg)</option>
+                                <option value="month">Gom nhóm theo tháng, trung bình</option>
+                                <option value="day">Gom nhóm theo ngày, trung bình</option>
                             </FormControl>
                         </FormGroup>
                     </Col>
@@ -155,7 +155,7 @@ const WindMultiStationTab = ({
             {/* Biểu đồ Multi-line so sánh chuỗi thời gian */}
             <Row>
                 <Col xs={12} md={series.length >= 2 ? 8 : 12}>
-                    <Panel header={<span style={{ fontWeight: 600 }}><i className="fa fa-line-chart" /> Diễn Biến Chuỗi Thời Gian Đồng Thời ({series.length} Trạm)</span>}>
+                    <Panel header={<span style={{ fontWeight: 600 }}><i className="fa fa-line-chart" /> Diễn biến chuỗi thời gian đồng thời ({series.length} trạm)</span>}>
                         <Plot
                             data={multiLineData}
                             layout={multiLineLayout}
@@ -169,7 +169,7 @@ const WindMultiStationTab = ({
                 {/* Biểu đồ phân tán Scatter Plot tương quan nếu có >= 2 trạm */}
                 {series.length >= 2 && (
                     <Col xs={12} md={4}>
-                        <Panel header={<span style={{ fontWeight: 600 }}><i className="fa fa-arrows-h" /> Tương Quan Giữa 2 Trạm</span>}>
+                        <Panel header={<span style={{ fontWeight: 600 }}><i className="fa fa-arrows-h" /> Tương quan giữa 2 trạm</span>}>
                             <Plot
                                 data={scatterPlotData}
                                 layout={scatterLayout}

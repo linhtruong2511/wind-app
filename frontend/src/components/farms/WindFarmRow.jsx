@@ -45,10 +45,10 @@ const WindFarmRow = ({ item, isSelected = false, onSelectPoint }) => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                     <strong style={{ fontSize: '13px', color: '#1e3a8a' }}>
                         <i className="fa fa-bolt" style={{ color: '#eab308', marginRight: '4px' }} />
-                        Điểm tua-bin #{pointId}
+                        Điểm tuabin #{pointId}
                     </strong>
                     <Label bsStyle={isFixed ? 'primary' : 'warning'} style={{ fontSize: '10px' }}>
-                        {isFixed ? 'Móng cố định (≤50m)' : 'Móng nổi (>50m)'}
+                        {isFixed ? 'Móng cố định' : 'Móng nổi'}
                     </Label>
                     {item.zone && (
                         <span style={{ fontSize: '11px', color: '#64748b' }}>
@@ -77,13 +77,13 @@ const WindFarmRow = ({ item, isSelected = false, onSelectPoint }) => {
                     Công suất: <strong style={{ color: getPowerBadgeColor(power) }}>{power.toFixed(1)} MW</strong>
                 </div>
                 <div>
-                    Hệ số CF: <strong style={{ color: '#0369a1' }}>{cf.toFixed(1)}%</strong>
+                    Hệ số sử dụng: <strong style={{ color: '#0369a1' }}>{cf.toFixed(1)}%</strong>
                 </div>
                 <div>
                     Độ sâu đáy biển: <strong>{depth.toFixed(0)} m</strong>
                 </div>
                 <div>
-                    Gió 100m: <strong>{windSpeed.toFixed(1)} m/s</strong> ({windDir.toFixed(0)}°)
+                    Gió ở 100 m: <strong>{windSpeed.toFixed(1)} m/s</strong>, hướng {windDir.toFixed(0)}°
                 </div>
                 <div style={{ marginLeft: 'auto', color: '#94a3b8' }}>
                     {lat.toFixed(3)}°N, {lon.toFixed(3)}°E

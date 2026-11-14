@@ -90,7 +90,7 @@ const WindGridTimePlayer = ({
                 <Button
                     onClick={handleNext}
                     disabled={!hasMultipleSteps}
-                    title="Bước thời gian sau (chuyển ngày khi hết giờ)"
+                    title="Bước thời gian sau, sang ngày mới khi hết giờ"
                 >
                     <i className="fa fa-step-forward" />
                 </Button>

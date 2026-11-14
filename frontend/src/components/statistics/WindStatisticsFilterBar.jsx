@@ -46,7 +46,7 @@ const WindStatisticsFilterBar = ({
     });
 
     return (
-        <Panel header={<h4 style={{ margin: 0, fontSize: '15px' }}><i className="fa fa-filter" /> Bộ Lọc Phân Tích & Phạm Vi Trạm</h4>} style={{ marginBottom: '15px' }}>
+        <Panel header={<h4 style={{ margin: 0, fontSize: '15px' }}><i className="fa fa-filter" /> Bộ lọc phân tích và phạm vi trạm</h4>} style={{ marginBottom: '15px' }}>
             <Row>
                 {/* 1. Chọn Chu kỳ phân tích */}
                 <Col xs={12} sm={3} md={2}>
@@ -58,9 +58,9 @@ const WindStatisticsFilterBar = ({
                             onChange={(e) => setPeriodType(e.target.value)}
                             style={{ height: '34px', fontSize: '12px' }}
                         >
-                            <option value="yearly">Theo Năm (Yearly)</option>
-                            <option value="monthly">Theo Tháng (Monthly)</option>
-                            <option value="custom">Tùy chọn ngày (Date Range)</option>
+                            <option value="yearly">Theo năm</option>
+                            <option value="monthly">Theo tháng</option>
+                            <option value="custom">Tùy chọn khoảng ngày</option>
                         </FormControl>
                     </FormGroup>
                 </Col>
@@ -127,14 +127,14 @@ const WindStatisticsFilterBar = ({
                 {/* 3. Lọc theo Tỉnh / Thành */}
                 <Col xs={12} sm={3} md={3}>
                     <FormGroup controlId="provinceSelect">
-                        <ControlLabel style={{ fontSize: '12px', fontWeight: 600 }}>Tỉnh / Khu vực</ControlLabel>
+                        <ControlLabel style={{ fontSize: '12px', fontWeight: 600 }}>Tỉnh hoặc khu vực</ControlLabel>
                         <FormControl
                             componentClass="select"
                             value={selectedProvince || ''}
                             onChange={(e) => setSelectedProvince(e.target.value)}
                             style={{ height: '34px', fontSize: '12px' }}
                         >
-                            <option value="">Toàn bộ 63 Tỉnh / Thành</option>
+                            <option value="">Toàn bộ tỉnh, thành</option>
                             {provinces.map(p => (
                                 <option key={p.code || p.id || p} value={p.name || p}>
                                     {p.name || p}
@@ -183,7 +183,7 @@ const WindStatisticsFilterBar = ({
                                                         checked={selectedStationIds.includes(st.id)}
                                                         onChange={() => toggleStation(st.id)}
                                                     />
-                                                    <span>{st.name} ({st.station_code})</span>
+                                                    <span>{st.name}, mã {st.station_code}</span>
                                                 </label>
                                             </div>
                                         ))}

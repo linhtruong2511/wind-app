@@ -43,7 +43,7 @@ const WindFarmMapLegend = ({
                 <div>
                     <div style={{ fontWeight: 600, marginBottom: '6px', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <i className="fa fa-circle" style={{ color: '#2563eb', fontSize: '10px' }} />
-                        <span>Công suất dự báo tua-bin (MW)</span>
+                        <span>Công suất dự báo tuabin, MW</span>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -70,7 +70,7 @@ const WindFarmMapLegend = ({
                     <div style={{ fontWeight: 600, marginBottom: '6px', color: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <i className={`fa ${metric.icon}`} style={{ color: '#0284c7' }} />
-                            <span>{metric.label} ({metric.unit})</span>
+                            <span>{metric.label}, {metric.unit}</span>
                         </span>
                         <span style={{ fontSize: '10px', background: '#e0f2fe', color: '#0369a1', padding: '1px 5px', borderRadius: '3px', fontWeight: 600 }}>
                             {methodLabel}
@@ -106,7 +106,7 @@ const WindFarmMapLegend = ({
                     {viewMode === 'both' && (
                         <div style={{ marginTop: '6px', paddingTop: '5px', borderTop: '1px dashed #cbd5e1', display: 'flex', alignItems: 'center', gap: '6px', color: '#334155' }}>
                             <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#2563eb', border: '1px solid #ffffff', display: 'inline-block' }} />
-                            <span>Vị trí điểm khảo sát tua-bin</span>
+                            <span>Vị trí điểm khảo sát tuabin</span>
                         </div>
                     )}
                 </div>

@@ -4,11 +4,11 @@ import { NavLink } from 'react-router-dom';
 
 const NAV_ITEMS = [
     { to: '/admin/dashboard', icon: 'fa-th-large', label: 'Tổng quan' },
-    { to: '/admin/cds', icon: 'fa-cloud-download', label: 'Thu thập CDS ERA5' },
-    { to: '/admin/rasters', icon: 'fa-cubes', label: 'Dữ liệu Lưới & NetCDF' },
-    { to: '/admin/stations', icon: 'fa-map-marker', label: 'Trạm đo & Quan trắc' },
-    { to: '/admin/farms', icon: 'fa-bolt', label: 'Trang trại & Tuabin' },
-    { to: '/admin/datasets', icon: 'fa-database', label: 'Bộ dữ liệu & Phân quyền' },
+    { to: '/admin/cds', icon: 'fa-cloud-download', label: 'Thu thập dữ liệu ERA5' },
+    { to: '/admin/rasters', icon: 'fa-cubes', label: 'Dữ liệu lưới' },
+    { to: '/admin/stations', icon: 'fa-map-marker', label: 'Trạm đo và quan trắc' },
+    { to: '/admin/farms', icon: 'fa-bolt', label: 'Trang trại và tuabin' },
+    { to: '/admin/datasets', icon: 'fa-database', label: 'Bộ dữ liệu và phân quyền' },
 ];
 
 const AdminSidebar = ({ collapsed, config }) => {

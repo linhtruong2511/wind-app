@@ -107,7 +107,7 @@ const WindGridSidebarDrawer = ({
             <div style={{ padding: '14px 16px', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <i className="fa fa-sliders" style={{ color: '#2563eb' }} />
-                    Dữ Liệu Lưới & Khí Tượng
+                    Dữ liệu lưới và khí tượng
                 </h4>
             </div>
 
@@ -174,7 +174,7 @@ const WindGridSidebarDrawer = ({
                 {activeTab === 'controls' && (
                     <>
                         <FormGroup style={{ marginBottom: '10px' }}>
-                            <ControlLabel style={{ fontSize: '12px', color: '#475569' }}>Bộ dữ liệu (Dataset):</ControlLabel>
+                            <ControlLabel style={{ fontSize: '12px', color: '#475569' }}>Bộ dữ liệu:</ControlLabel>
                             <FormControl
                                 componentClass="select"
                                 value={selectedDatasetId || ''}
@@ -182,7 +182,7 @@ const WindGridSidebarDrawer = ({
                             >
                                 {datasets.map(d => (
                                     <option key={d.id} value={d.id}>
-                                        {d.name} ({d.code})
+                                        {d.name}
                                     </option>
                                 ))}
                             </FormControl>
@@ -273,7 +273,7 @@ const WindGridSidebarDrawer = ({
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                                 <strong style={{ fontSize: '13px', color: '#1e293b' }}>
                                     <i className="fa fa-thermometer-half" style={{ color: '#ef4444', marginRight: '6px' }} />
-                                    Bản đồ nhiệt (Heatmap)
+                                    Bản đồ nhiệt
                                 </strong>
                                 <input
                                     type="checkbox"
@@ -305,7 +305,7 @@ const WindGridSidebarDrawer = ({
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                                 <strong style={{ fontSize: '13px', color: '#1e293b' }}>
                                     <i className="fa fa-flag" style={{ color: '#2563eb', marginRight: '6px' }} />
-                                    Luồng hạt gió (Particle Flow)
+                                    Luồng hạt gió
                                 </strong>
                                 <input
                                     type="checkbox"
@@ -337,7 +337,7 @@ const WindGridSidebarDrawer = ({
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <strong style={{ fontSize: '13px', color: '#1e293b' }}>
                                     <i className="fa fa-map-marker" style={{ color: '#10b981', marginRight: '6px' }} />
-                                    Chồng lớp Trạm Quan Trắc
+                                    Lớp trạm quan trắc
                                 </strong>
                                 <input
                                     type="checkbox"
@@ -360,21 +360,21 @@ const WindGridSidebarDrawer = ({
                             <>
                                 {/* KPI Cards */}
                                 <div style={{ padding: '10px', backgroundColor: '#eff6ff', borderRadius: '8px', border: '1px solid #bfdbfe' }}>
-                                    <div style={{ fontSize: '11px', color: '#1e40af', fontWeight: 600 }}>TỔNG SỐ TỆP TIN LƯỚI</div>
+                                    <div style={{ fontSize: '11px', color: '#1e40af', fontWeight: 600 }}>Tổng số tệp dữ liệu lưới</div>
                                     <div style={{ fontSize: '20px', fontWeight: 700, color: '#1e3a8a', marginTop: '2px' }}>
                                         {(summary.total_granules || 0).toLocaleString()}
                                     </div>
                                 </div>
 
                                 <div style={{ padding: '10px', backgroundColor: '#ecfdf5', borderRadius: '8px', border: '1px solid #a7f3d0' }}>
-                                    <div style={{ fontSize: '11px', color: '#065f46', fontWeight: 600 }}>KHOẢNG THỜI GIAN</div>
+                                    <div style={{ fontSize: '11px', color: '#065f46', fontWeight: 600 }}>Khoảng thời gian</div>
                                     <div style={{ fontSize: '12px', fontWeight: 700, color: '#064e3b', marginTop: '2px' }}>
-                                        {formatDate(summary.min_granule_time)} - {formatDate(summary.max_granule_time)}
+                                        {formatDate(summary.min_granule_time)} đến {formatDate(summary.max_granule_time)}
                                     </div>
                                 </div>
 
                                 <div style={{ padding: '10px', backgroundColor: '#fffbeb', borderRadius: '8px', border: '1px solid #fde68a' }}>
-                                    <div style={{ fontSize: '11px', color: '#92400e', fontWeight: 600 }}>BIẾN SỐ KHÍ TƯỢNG</div>
+                                    <div style={{ fontSize: '11px', color: '#92400e', fontWeight: 600 }}>Biến số khí tượng</div>
                                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '6px' }}>
                                         {(summary.unique_variable_codes || []).map(code => (
                                             <span key={code} style={{ backgroundColor: '#fef3c7', color: '#92400e', padding: '2px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 600, border: '1px solid #fde68a' }}>

@@ -50,9 +50,9 @@ const WindRoseTab = ({
                             onChange={(e) => setSelectedStationId(e.target.value)}
                             style={{ height: '34px', fontSize: '12px' }}
                         >
-                            <option value="">Toàn bộ mạng lưới (Tổng hợp)</option>
+                            <option value="">Toàn bộ mạng lưới, tổng hợp</option>
                             {stations.map(st => (
-                                <option key={st.id} value={st.id}>{st.name} ({st.station_code})</option>
+                                <option key={st.id} value={st.id}>{st.name}, mã {st.station_code}</option>
                             ))}
                         </FormControl>
                     </FormGroup>
@@ -139,9 +139,9 @@ const WindRoseTab = ({
                                 onChange={(e) => setSelectedStationId(e.target.value)}
                                 style={{ height: '34px', fontSize: '12px', fontWeight: 600 }}
                             >
-                                <option value="">Toàn bộ mạng lưới (Tổng hợp)</option>
+                                <option value="">Toàn bộ mạng lưới, tổng hợp</option>
                                 {stations.map(st => (
-                                    <option key={st.id} value={st.id}>{st.name} ({st.station_code})</option>
+                                    <option key={st.id} value={st.id}>{st.name}, mã {st.station_code}</option>
                                 ))}
                             </FormControl>
                         </FormGroup>
@@ -149,13 +149,13 @@ const WindRoseTab = ({
                     <Col xs={12} sm={6} md={8}>
                         <div style={{ display: 'flex', gap: '20px', alignItems: 'center', height: '100%', paddingTop: '15px' }}>
                             <span style={{ fontSize: '13px', color: '#475569' }}>
-                                Tổng quan trắc: <strong>{total_records.toLocaleString()}</strong>
+                                Tổng số bản ghi: <strong>{total_records.toLocaleString()}</strong>
                             </span>
                             <span style={{ fontSize: '13px', color: '#475569' }}>
-                                Tỷ lệ lặng gió (&lt;0.5m/s): <strong>{calm_percent}%</strong>
+                                Tỷ lệ lặng gió, dưới 0,5 m/s: <strong>{calm_percent}%</strong>
                             </span>
                             <span style={{ fontSize: '13px', color: '#475569' }}>
-                                Vận tốc TB: <strong>{avg_wind_speed} m/s</strong>
+                                Tốc độ trung bình: <strong>{avg_wind_speed} m/s</strong>
                             </span>
                         </div>
                     </Col>
@@ -165,7 +165,7 @@ const WindRoseTab = ({
             <Row>
                 {/* Cột trái: Biểu đồ Hoa gió 16 hướng */}
                 <Col xs={12} md={7}>
-                    <Panel header={<span style={{ fontWeight: 600 }}><i className="fa fa-compass" /> Biểu Đồ Hoa Gió 16 Hướng (Wind Rose)</span>}>
+                    <Panel header={<span style={{ fontWeight: 600 }}><i className="fa fa-compass" /> Biểu đồ hoa gió 16 hướng</span>}>
                         <Plot
                             data={polarPlotData}
                             layout={polarLayout}
@@ -178,7 +178,7 @@ const WindRoseTab = ({
 
                 {/* Cột phải: Phân bố tần suất & Bảng phân vị */}
                 <Col xs={12} md={5}>
-                    <Panel header={<span style={{ fontWeight: 600 }}><i className="fa fa-bar-chart" /> Phân Bố Tần Suất Vận Tốc Gió</span>}>
+                    <Panel header={<span style={{ fontWeight: 600 }}><i className="fa fa-bar-chart" /> Phân bố tần suất tốc độ gió</span>}>
                         <Plot
                             data={distPlotData}
                             layout={distLayout}
@@ -188,10 +188,10 @@ const WindRoseTab = ({
                         />
                     </Panel>
 
-                    <Panel header={<span style={{ fontWeight: 600 }}><i className="fa fa-calculator" /> Các Chỉ Số Phân Vị Vận Tốc (Percentiles)</span>}>
+                    <Panel header={<span style={{ fontWeight: 600 }}><i className="fa fa-calculator" /> Các chỉ số phân vị tốc độ gió</span>}>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', textAlign: 'center' }}>
                             <div style={{ background: '#f8fafc', padding: '10px', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
-                                <div style={{ fontSize: '11px', color: '#64748b' }}>P50 (Trung vị)</div>
+                                <div style={{ fontSize: '11px', color: '#64748b' }}>P50, trung vị</div>
                                 <div style={{ fontSize: '18px', fontWeight: 700, color: '#0284c7' }}>{percentiles.p50 || 0} <span style={{ fontSize: '11px' }}>m/s</span></div>
                             </div>
                             <div style={{ background: '#f8fafc', padding: '10px', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
@@ -203,7 +203,7 @@ const WindRoseTab = ({
                                 <div style={{ fontSize: '18px', fontWeight: 700, color: '#d97706' }}>{percentiles.p90 || 0} <span style={{ fontSize: '11px' }}>m/s</span></div>
                             </div>
                             <div style={{ background: '#f8fafc', padding: '10px', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
-                                <div style={{ fontSize: '11px', color: '#64748b' }}>P99 (Cực đoan)</div>
+                                <div style={{ fontSize: '11px', color: '#64748b' }}>P99, cực đoan</div>
                                 <div style={{ fontSize: '18px', fontWeight: 700, color: '#dc2626' }}>{percentiles.p99 || 0} <span style={{ fontSize: '11px' }}>m/s</span></div>
                             </div>
                         </div>
