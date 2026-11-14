@@ -348,8 +348,8 @@ const WindStationMapContainer = ({
             {/* Header info badge */}
             <div style={{
                 position: 'absolute',
-                top: '10px',
-                left: '10px',
+                top: '5px',
+                left: '35px',
                 zIndex: 10,
                 backgroundColor: 'rgba(255, 255, 255, 0.95)',
                 padding: '6px 14px',
@@ -371,8 +371,8 @@ const WindStationMapContainer = ({
             {/* Reset View Button */}
             <div style={{
                 position: 'absolute',
-                top: '10px',
-                right: '10px',
+                top: '5px',
+                right: '35px',
                 zIndex: 10
             }}>
                 <Button
@@ -395,8 +395,8 @@ const WindStationMapContainer = ({
             {/* Legend Box */}
             <div style={{
                 position: 'absolute',
-                bottom: '20px',
-                right: '10px',
+                bottom: '5px',
+                left: '10px',
                 zIndex: 10,
                 backgroundColor: 'rgba(255, 255, 255, 0.95)',
                 padding: '8px 12px',
@@ -412,10 +412,6 @@ const WindStationMapContainer = ({
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span style={{ display: 'inline-block', width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#2563eb', border: '1px solid #fff' }} />
                     <span>SYNOP (Khí tượng bề mặt)</span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ display: 'inline-block', width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#f59e0b', border: '1px solid #fff' }} />
-                    <span>AWS (Trạm tự động)</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span style={{ display: 'inline-block', width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#ef4444', border: '2px solid #fff' }} />
