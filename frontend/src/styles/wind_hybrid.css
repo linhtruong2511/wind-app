@@ -1,0 +1,39 @@
+/* Bổ trợ CSS cho Bootstrap 3 bên trong Wind App */
+.gn-wind-page {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+#wind-app-root {
+    min-height: calc(100vh - 140px);
+}
+
+.wind-subnav {
+    background-color: #ffffff;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 8px 15px 0 15px;
+    margin-bottom: 20px;
+}
+
+.wind-subnav .nav-tabs {
+    border-bottom: none;
+}
+
+.wind-subnav .nav-tabs > li > a {
+    color: #475569;
+    font-weight: 600;
+    border-radius: 4px 4px 0 0;
+    margin-right: 4px;
+    padding: 10px 16px;
+}
+
+.wind-subnav .nav-tabs > li.active > a,
+.wind-subnav .nav-tabs > li > a.active,
+.wind-subnav .nav-tabs > li.active > a:hover,
+.wind-subnav .nav-tabs > li > a.active:hover,
+.wind-subnav .nav-tabs > li.active > a:focus,
+.wind-subnav .nav-tabs > li > a.active:focus {
+    color: #0284c7;
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-bottom-color: transparent;
+}

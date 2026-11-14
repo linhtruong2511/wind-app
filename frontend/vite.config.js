@@ -2,9 +2,9 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
     plugins: [react()],
-    base: '/static/wind_management/dist/',
+    base: command === 'serve' ? '/' : '/static/wind_management/dist/',
     build: {
         outDir: path.resolve(__dirname, '../src/geonode_project/static/wind_management/dist'),
         emptyOutDir: true,
@@ -22,6 +22,7 @@ export default defineConfig({
         }
     },
     server: {
+        host: '0.0.0.0',
         port: 5173,
         cors: true,
         origin: 'http://localhost:5173',
@@ -29,8 +30,8 @@ export default defineConfig({
             host: 'localhost',
         },
         proxy: {
-            '/wind/api': 'http://localhost:8000',
-            '/geoserver': 'http://localhost:8000'
+            '/wind/api': 'http://localhost',
+            '/geoserver': 'http://localhost'
         }
     }
-});
+}));

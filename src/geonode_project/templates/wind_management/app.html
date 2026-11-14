@@ -7,10 +7,16 @@
 {% block extra_style %}
     {% block extra_head %}
         {% if vite_dev_mode %}
+            <script type="module">
+                import RefreshRuntime from 'http://localhost:5173/@react-refresh';
+                RefreshRuntime.injectIntoGlobalHook(window);
+                window.$RefreshReg$ = () => {};
+                window.$RefreshSig$ = () => (type) => type;
+                window.__vite_plugin_react_preamble_installed__ = true;
+            </script>
             <script type="module" src="http://localhost:5173/@vite/client"></script>
-        {% else %}
-            <link rel="stylesheet" href="{% static 'wind_management/dist/wind_app.css' %}">
         {% endif %}
+        <link rel="stylesheet" href="{% static 'wind_management/dist/wind_app.css' %}">
     {% endblock %}
 {% endblock %}
 
@@ -40,7 +46,13 @@
     {{ block.super }}
     {% block extra_script %}
         {% if vite_dev_mode %}
-            <script type="module" src="http://localhost:5173/src/main.jsx"></script>
+            <script type="module" src="http://localhost:5173/src/main.jsx" onerror="
+                console.warn('Vite dev server not reachable on port 5173. Falling back to static production bundle.');
+                var s = document.createElement('script');
+                s.type = 'module';
+                s.src = '{% static 'wind_management/dist/wind_app.js' %}';
+                document.body.appendChild(s);
+            "></script>
         {% else %}
             <script type="module" src="{% static 'wind_management/dist/wind_app.js' %}"></script>
         {% endif %}
