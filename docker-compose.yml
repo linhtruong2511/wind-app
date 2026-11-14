@@ -205,9 +205,6 @@ services:
   # Celery Worker cho Wind Apps
   wind_worker:
     image: ${COMPOSE_PROJECT_NAME}/wind_be:latest
-    build:
-      context: ./
-      dockerfile: docker/wind_be/Dockerfile
     container_name: wind_worker4${COMPOSE_PROJECT_NAME}
     restart: unless-stopped
     env_file:
