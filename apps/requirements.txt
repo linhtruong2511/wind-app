@@ -1,0 +1,23 @@
+# Django & REST Framework
+Django>=5.0,<6.2
+djangorestframework>=3.14.0
+djangorestframework-gis>=1.0
+django-filter>=23.0
+django-cors-headers>=4.0
+
+# Database & Celery
+psycopg[binary]>=3.1.0
+celery>=5.3.0
+redis>=5.0.0
+django-celery-beat>=2.5.0
+
+# Scientific & Spatial libraries
+xarray>=2023.0
+netCDF4>=1.6.0
+cdsapi>=0.7.0
+ecmwf-datastores-client>=0.6.0
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Application Server
+gunicorn>=21.0.0
