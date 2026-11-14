@@ -72,8 +72,8 @@ except Exception:
 
 PROFILE_LANGUAGE_CHOICES = tuple((k.split("-")[0], v) for k, v in LANGUAGES)
 
-# Language code for this installation.
-LANGUAGE_CODE = os.getenv("LANGUAGE_CODE", "vi-vn")
+# Language code for this installation (must be 2-letter code like 'vi' for GeoNode multilang)
+LANGUAGE_CODE = os.getenv("LANGUAGE_CODE", "vi")
 
 if PROJECT_NAME not in INSTALLED_APPS:
     INSTALLED_APPS += (PROJECT_NAME,)

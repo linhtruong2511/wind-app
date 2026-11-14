@@ -129,7 +129,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/6.1/topics/i18n/
 
-LANGUAGE_CODE = os.getenv("LANGUAGE_CODE", "vi-vn")
+LANGUAGE_CODE = os.getenv("LANGUAGE_CODE", "vi")
 
 TIME_ZONE = os.getenv("TIME_ZONE", "Asia/Ho_Chi_Minh")
 
