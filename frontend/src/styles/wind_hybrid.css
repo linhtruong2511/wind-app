@@ -47,6 +47,15 @@ body.wind-admin-fullscreen-active #gn-brand-navbar-bottom {
     display: none !important;
 }
 
+body.wind-admin-fullscreen-active .wind-app-container,
+body.wind-admin-fullscreen-active .wind-content-area {
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    overflow: hidden !important;
+}
+
 body.wind-admin-fullscreen-active #wind-app-root {
     position: fixed !important;
     top: 0 !important;
