@@ -1,10 +1,12 @@
 import os
 import tempfile
+from datetime import datetime, timezone as dt_timezone
+
 import numpy as np
 import pandas as pd
 import xarray as xr
 from django.contrib.gis.geos import Polygon
-from django.test import TestCase, override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.utils import timezone
 from rest_framework.test import APIClient
 
@@ -20,6 +22,7 @@ from wind_raster.services.netcdf_service import (
 )
 from wind_raster.services.raster_ingest import ingest_netcdf
 from wind_raster.services.raster_service import _parse_bbox
+from wind_raster.services.time_parsing import parse_time_from_filename
 
 
 @override_settings(ROOT_URLCONF="wind_raster.urls")
@@ -306,3 +309,30 @@ class RasterTestCase(TestCase):
         finally:
             if os.path.exists(tmp_path):
                 os.remove(tmp_path)
+
+
+class FilenameTimeTest(SimpleTestCase):
+    def test_parses_supported_patterns(self):
+        expected = datetime(2021, 1, 1, 6, tzinfo=dt_timezone.utc)
+        names = (
+            "2021010106.nc",
+            "20210101_06.nc",
+            "2021-01-01_06.nc",
+            "wrfout_d01_2021-01-01_06:00:00.nc",
+            "wrf3km_2021010106_cut.nc",
+            "D:/Data/2021/2021010106.nc",
+        )
+        for name in names:
+            with self.subTest(name=name):
+                self.assertEqual(parse_time_from_filename(name), expected)
+
+    def test_parses_minutes(self):
+        self.assertEqual(
+            parse_time_from_filename("202101010630.nc"),
+            datetime(2021, 1, 1, 6, 30, tzinfo=dt_timezone.utc),
+        )
+
+    def test_returns_none_when_name_has_no_valid_time(self):
+        for name in ("abc.nc", "2021133100.nc", "20210101.nc", "202101010600123.nc", ""):
+            with self.subTest(name=name):
+                self.assertIsNone(parse_time_from_filename(name))
