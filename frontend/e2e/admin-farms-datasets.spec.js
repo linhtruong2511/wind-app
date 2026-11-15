@@ -100,17 +100,26 @@ test.describe('WindHUB Admin: Farms, Turbines & Datasets CRUD (E2E-ADM-06)', () 
         }
     });
 
-    test('E2E-ADM-06b: Datasets CRUD, Variables filter & Access Policies tab', async ({ page }) => {
+    test('E2E-ADM-06b: Datasets CRUD with access settings and variables tab', async ({ page }) => {
         await navigateHash(page, '/admin/datasets');
         const dsCode = `E2E_DS_${Date.now().toString().slice(-5)}`;
         const dsName = `Bộ dữ liệu E2E ${dsCode}`;
 
+        // Quyền xem nằm trong form, không còn tab riêng và trường phân loại
+        await expect(page.getByRole('button', { name: /Chính sách phân quyền/i })).toHaveCount(0);
+
         // Create dataset
         await page.getByRole('button', { name: /Tạo bộ dữ liệu mới/i }).click();
+        await expect(page.getByText('Phân loại')).toHaveCount(0);
         await page.getByPlaceholder(/Ví dụ: ERA5_HOURLY/i).fill(dsCode);
         await page.getByPlaceholder(/Ví dụ: Gió ERA5/i).fill(dsName);
+        await page.getByLabel(/Theo nhóm/i).check();
+        await expect(page.getByTestId('dataset-group-list')).toBeVisible();
+        await page.getByLabel(/Công khai/i).check();
+        await expect(page.getByTestId('dataset-group-list')).toHaveCount(0);
         await page.getByRole('button', { name: /Lưu bộ dữ liệu/i }).click();
         await expect(page.locator('table')).toContainText(dsCode);
+        await expect(page.locator('tr', { hasText: dsCode })).toContainText('Công khai');
 
         // Edit dataset
         const dsRow = page.locator('tr', { hasText: dsCode });
@@ -128,9 +137,5 @@ test.describe('WindHUB Admin: Farms, Turbines & Datasets CRUD (E2E-ADM-06)', () 
         await page.getByRole('button', { name: /Biến dữ liệu/i }).click();
         await expect(page.locator('table')).toBeVisible();
         await saveEvidence(page, 'adm_06_datasets_variables.png');
-
-        // Access policies tab
-        await page.getByRole('button', { name: /Chính sách phân quyền/i }).click();
-        await expect(page.locator('table')).toBeVisible();
     });
 });
