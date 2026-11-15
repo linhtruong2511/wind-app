@@ -43,7 +43,7 @@ class RasterGranuleIndexViewSet(viewsets.ReadOnlyModelViewSet):
 
         import os
         import tempfile
-        from wind_raster.services.raster_ingest import ingest_netcdf
+        from wind_raster.services.raster_ingest import IngestError, ingest_netcdf
 
         suffix = os.path.splitext(uploaded_file.name)[1]
         with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
@@ -53,24 +53,30 @@ class RasterGranuleIndexViewSet(viewsets.ReadOnlyModelViewSet):
 
         log = IngestionLog.objects.create(dataset=dataset, source_file=uploaded_file.name, status="RUNNING")
         try:
-            result = ingest_netcdf(tmp_path, dataset)
+            result = ingest_netcdf(tmp_path, dataset, source_name=uploaded_file.name)
+        except Exception as exc:
+            log.status = "FAILED"
+            log.error_message = str(exc)
+            log.save()
+            if isinstance(exc, IngestError):
+                message = str(exc)
+            else:
+                message = "Không thể xử lý tệp dữ liệu. Chi tiết đã được ghi trong nhật ký nạp dữ liệu."
+            return Response({"error": message}, status=status.HTTP_400_BAD_REQUEST)
+        else:
             log.status = "SUCCESS"
             log.records_processed = result.granules
             log.save()
-            return Response({
-                "message": f"Nạp thành công {result.granules} granule(s).",
-                "granules": result.granules,
-                "variables": result.variables,
-            })
-        except Exception as e:
-            log.status = "FAILED"
-            log.error_message = str(e)
-            log.save()
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {
+                    "message": result.summary(),
+                    "granules": result.granules,
+                    "variables": result.variables,
+                }
+            )
         finally:
             if os.path.exists(tmp_path):
                 os.remove(tmp_path)
-
 
     @action(detail=False, methods=["get"])
     def point_metadata(self, request):
