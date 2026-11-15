@@ -190,7 +190,10 @@ const AdminRastersRoute = () => {
                                             Kéo thả tệp .nc / .zip vào đây hoặc bấm để chọn tệp
                                         </div>
                                         <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px' }}>
-                                            Hỗ trợ tệp từ các mô hình ERA5, WRF, GFS theo mốc giờ hoặc chuỗi thời gian nhiều mốc
+                                            Tệp có sẵn thời gian bên trong sẽ dùng thời gian đó. Tệp không có thì lấy giờ từ tên tệp, ví dụ 2021010100.nc.
+                                        </div>
+                                        <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>
+                                            Muốn nạp nhiều mốc giờ một lần, hãy nén các tệp vào một tệp .zip.
                                         </div>
                                     </div>
                                 )}
@@ -217,7 +220,7 @@ const AdminRastersRoute = () => {
                     {uploadResult && (
                         <div
                             className={`alert alert-${uploadResult.success ? 'success' : 'danger'}`}
-                            style={{ borderRadius: '8px', marginTop: '16px', marginBottom: 0 }}
+                            style={{ borderRadius: '8px', marginTop: '16px', marginBottom: 0, whiteSpace: 'pre-line' }}
                         >
                             <i className={`fa ${uploadResult.success ? 'fa-check-circle' : 'fa-exclamation-triangle'}`} style={{ marginRight: '8px' }}></i>
                             {uploadResult.message}
