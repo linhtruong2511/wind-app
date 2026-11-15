@@ -134,9 +134,15 @@ class UtilsTestCase(TestCase):
 class DatasetViewSetTestCase(TestCase):
     def setUp(self):
         self.client = APIClient()
-        self.ds1 = Dataset.objects.create(code="ERA5", name="ERA5", category="GRIDDED", is_active=True)
-        self.ds2 = Dataset.objects.create(code="STATION_DAILY", name="Station Daily", category="STATION", is_active=True)
-        self.inactive_ds = Dataset.objects.create(code="OBSOLETE", name="Obsolete", category="GRIDDED", is_active=False)
+        self.ds1 = Dataset.objects.create(
+            code="ERA5", name="ERA5", category="GRIDDED", is_active=True, access_level="PUBLIC"
+        )
+        self.ds2 = Dataset.objects.create(
+            code="STATION_DAILY", name="Station Daily", category="STATION", is_active=True, access_level="PUBLIC"
+        )
+        self.inactive_ds = Dataset.objects.create(
+            code="OBSOLETE", name="Obsolete", category="GRIDDED", is_active=False, access_level="PUBLIC"
+        )
 
         self.var1 = DatasetVariable.objects.create(
             dataset=self.ds1, variable_code="wind_speed", variable_name="Wind Speed", is_component=False

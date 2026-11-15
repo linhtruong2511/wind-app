@@ -8,6 +8,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework_gis.filters import InBBoxFilter
 
+from wind_core.access import accessible_datasets
 from wind_core.utils import StandardResultsSetPagination
 from .models import RasterGranuleIndex
 from .serializers import RasterGranuleIndexSerializer
@@ -27,6 +28,10 @@ class RasterGranuleIndexViewSet(viewsets.ReadOnlyModelViewSet):
     bbox_filter_field = "footprint"
     filter_backends = [filters.DjangoFilterBackend, InBBoxFilter]
     filterset_fields = ["dataset", "variable_code", "granule_time"]
+
+    def get_queryset(self):
+        allowed = accessible_datasets(self.request.user)
+        return RasterGranuleIndex.objects.filter(dataset__in=allowed).order_by("id")
 
     @action(detail=False, methods=["post"], url_path="upload", permission_classes=[permissions.IsAdminUser])
     def upload_raster(self, request):
@@ -110,7 +115,7 @@ class RasterGranuleIndexViewSet(viewsets.ReadOnlyModelViewSet):
         if timezone.is_naive(parsed_time):
             parsed_time = timezone.make_aware(parsed_time, timezone.utc)
 
-        granules = self.queryset.filter(
+        granules = self.get_queryset().filter(
             dataset__code=dataset_code,
             footprint__intersects=point,
             granule_time=parsed_time,
@@ -181,4 +186,4 @@ class RasterGranuleIndexViewSet(viewsets.ReadOnlyModelViewSet):
         API trích xuất giá trị lưới NetCDF (vector u/v hoặc biến vô hướng)
         phục vụ vẽ trường gió và bản đồ nhiệt (heatmap).
         """
-        return get_raster_granule_data_service(request.query_params)
+        return get_raster_granule_data_service(request.query_params, user=request.user)

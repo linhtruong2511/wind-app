@@ -6,6 +6,7 @@ from rest_framework import permissions, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from wind_core.access import accessible_datasets, is_staff_user
 from wind_core.models import (
     AlertNotification,
     AlertRule,
@@ -49,11 +50,12 @@ class DatasetViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = getattr(self.request, "user", None)
-        is_staff = user and user.is_authenticated and (user.is_staff or user.is_superuser)
-        include_all = str(self.request.query_params.get("all", "")).lower() in ("true", "1")
-        if is_staff and include_all:
-            return Dataset.objects.all().order_by("id")
-        return super().get_queryset()
+        if is_staff_user(user):
+            include_all = str(self.request.query_params.get("all", "")).lower() in ("true", "1")
+            if include_all:
+                return Dataset.objects.all().order_by("id")
+            return super().get_queryset()
+        return accessible_datasets(user, super().get_queryset())
 
     @action(detail=False, methods=["get"], url_path="dashboard-stats", permission_classes=[permissions.IsAdminUser])
     def dashboard_stats(self, request):
@@ -155,6 +157,10 @@ class DatasetVariableViewSet(viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination
     filter_backends = [filters.DjangoFilterBackend]
     filterset_fields = ["dataset", "is_component"]
+
+    def get_queryset(self):
+        allowed = accessible_datasets(getattr(self.request, "user", None))
+        return DatasetVariable.objects.filter(dataset__in=allowed).order_by("id")
 
 
 class DatasetAccessPolicyViewSet(viewsets.ModelViewSet):

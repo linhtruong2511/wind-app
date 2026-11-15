@@ -2,7 +2,8 @@ from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from rest_framework.response import Response
 
-from wind_core.models import DatasetVariable
+from wind_core.access import accessible_datasets
+from wind_core.models import Dataset, DatasetVariable
 from wind_raster.models import RasterGranuleIndex
 from .netcdf_service import get_netcdf_data
 
@@ -17,10 +18,11 @@ def _parse_bbox(bbox_str):
     return bbox if len(bbox) == 4 else None
 
 
-def get_raster_granule_data_service(query_params):
+def get_raster_granule_data_service(query_params, user=None):
     """
     Trích xuất dữ liệu NetCDF cho RasterGranuleIndexViewSet.data
     theo dataset_id + variable và tùy chọn time, bbox, step.
+    Chỉ trả dữ liệu khi người dùng được phép xem bộ dữ liệu.
     """
     dataset_id = query_params.get("dataset_id")
     variable_code = query_params.get("variable")
@@ -33,7 +35,13 @@ def get_raster_granule_data_service(query_params):
     except (ValueError, TypeError):
         return Response({"error": "dataset_id không hợp lệ."}, status=400)
 
-    variable = DatasetVariable.objects.filter(
+    if (
+        Dataset.objects.filter(id=dataset_id).exists()
+        and not accessible_datasets(user).filter(id=dataset_id).exists()
+    ):
+        return Response({"error": "Bạn không có quyền xem bộ dữ liệu này."}, status=403)
+
+    variable =DatasetVariable.objects.filter(
         dataset_id=dataset_id, variable_code=variable_code
     ).first()
     if variable is None:

@@ -37,6 +37,7 @@ class RasterTestCase(TestCase):
             code="ERA5_GRID",
             name="ERA5 Grid",
             category="GRIDDED",
+            access_level="PUBLIC",
         )
         self.poly = Polygon.from_bbox((102.0, 8.0, 110.0, 24.0))
         self.poly.srid = 4326

@@ -150,3 +150,63 @@ class DatasetAccessTest(TestCase):
         response = self.client.get(f"{API}/user-groups/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual({item["name"] for item in response.data}, {"Nhóm phân tích", "Nhóm khác"})
+
+    def _rows(self, response):
+        return response.data["results"] if isinstance(response.data, dict) else response.data
+
+    def test_dataset_list_and_detail_follow_access(self):
+        for user, expected in self._expected_by_user():
+            with self.subTest(user=getattr(user, "username", "anonymous")):
+                self.client.force_authenticate(user=user)
+                response = self.client.get(f"{API}/datasets/")
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
+                self.assertEqual({row["code"] for row in self._rows(response)}, expected)
+
+        self.client.force_authenticate(user=None)
+        self.assertEqual(
+            self.client.get(f"{API}/datasets/{self.restricted.id}/").status_code, status.HTTP_404_NOT_FOUND
+        )
+        self.client.force_authenticate(user=self.member)
+        self.assertEqual(self.client.get(f"{API}/datasets/{self.restricted.id}/").status_code, status.HTTP_200_OK)
+
+    def test_dataset_variables_follow_access(self):
+        DatasetVariable.objects.create(dataset=self.public, variable_code="wind_10m", variable_name="Gió 10m")
+        DatasetVariable.objects.create(dataset=self.restricted, variable_code="wind_10m", variable_name="Gió 10m")
+        self.client.force_authenticate(user=None)
+        self.assertEqual(self.client.get(f"{API}/dataset-variables/").data["count"], 1)
+        self.client.force_authenticate(user=self.member)
+        self.assertEqual(self.client.get(f"{API}/dataset-variables/").data["count"], 2)
+
+    def test_raster_granule_list_and_summary_follow_access(self):
+        for user, expected in self._expected_by_user():
+            with self.subTest(user=getattr(user, "username", "anonymous")):
+                self.client.force_authenticate(user=user)
+                listing = self.client.get(f"{API}/raster-granules/")
+                self.assertEqual({row["dataset_code"] for row in self._rows(listing)}, expected)
+                summary = self.client.get(f"{API}/raster-granules/summary/")
+                self.assertEqual(summary.data["total_granules"], len(expected))
+
+    def test_raster_data_endpoint_checks_access(self):
+        def status_for(user, dataset):
+            self.client.force_authenticate(user=user)
+            url = f"{API}/raster-granules/data/?dataset_id={dataset.id}&variable=wind_10m"
+            return self.client.get(url).status_code
+
+        self.assertEqual(status_for(None, self.internal), status.HTTP_403_FORBIDDEN)
+        self.assertEqual(status_for(self.outsider, self.restricted), status.HTTP_403_FORBIDDEN)
+        # Có quyền thì đi qua bước kiểm tra, dừng ở bước tìm biến chưa khai báo
+        self.assertEqual(status_for(None, self.public), status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(status_for(self.member, self.restricted), status.HTTP_400_BAD_REQUEST)
+
+    def test_point_metadata_follows_access(self):
+        def count_for(user):
+            self.client.force_authenticate(user=user)
+            response = self.client.get(
+                f"{API}/raster-granules/point_metadata/",
+                {"lat": 10, "lon": 106, "time": self.moment.isoformat(), "dataset_code": "INT"},
+            )
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            return response.data["count"]
+
+        self.assertEqual(count_for(None), 0)
+        self.assertEqual(count_for(self.outsider), 1)
