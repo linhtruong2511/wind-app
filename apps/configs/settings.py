@@ -107,6 +107,9 @@ DATABASES = {
         "PASSWORD": os.environ.get("POSTGRES_PASSWORD", "postgres"),
         "HOST": os.environ.get("DATABASE_HOST", "localhost"),
         "PORT": os.environ.get("DATABASE_PORT", "5432"),
+        # Tài khoản ứng dụng không có quyền superuser để tạo extension PostGIS,
+        # nên DB test được tạo từ template đã cài sẵn PostGIS.
+        "TEST": {"TEMPLATE": os.environ.get("TEST_DATABASE_TEMPLATE", "template_postgis")},
     }
 }
 
