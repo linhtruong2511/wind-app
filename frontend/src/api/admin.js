@@ -242,8 +242,8 @@ export const updateDatasetVariable = (id, data) => {
         .then(res => res.data);
 };
 
-export const getDatasetAccessPolicies = (params = {}) => {
-    return axios.get(`${BASE_URL}/dataset-access-policies/`, { ...authConfig(), params })
+export const getUserGroups = () => {
+    return axios.get(`${BASE_URL}/user-groups/`, authConfig())
         .then(res => res.data.results || res.data || []);
 };
 

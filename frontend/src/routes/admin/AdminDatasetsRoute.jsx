@@ -6,51 +6,52 @@ import {
     updateDataset,
     deleteDataset,
     getAdminDatasetVariables,
-    getDatasetAccessPolicies
+    getUserGroups
 } from '../../api/admin';
-
-const CATEGORY_LABELS = {
-    GRIDDED: 'Lưới tọa độ',
-    STATION: 'Trạm quan trắc',
-    SATELLITE: 'Vệ tinh viễn thám',
-    EVENT: 'Hiện tượng cực đoan'
-};
 
 const ACCESS_LABELS = {
     PUBLIC: 'Công khai',
-    INTERNAL: 'Nội bộ',
-    RESTRICTED: 'Giới hạn'
+    INTERNAL: 'Cần đăng nhập',
+    RESTRICTED: 'Theo nhóm'
 };
 
+const ACCESS_OPTIONS = [
+    { value: 'PUBLIC', title: 'Công khai', hint: 'Ai cũng xem được, không cần đăng nhập.' },
+    { value: 'INTERNAL', title: 'Cần đăng nhập', hint: 'Chỉ người đã đăng nhập mới xem được.' },
+    { value: 'RESTRICTED', title: 'Theo nhóm', hint: 'Chỉ các nhóm được chọn bên dưới xem được. Quản trị viên luôn xem được.' }
+];
+
+const emptyForm = () => ({
+    id: null,
+    code: '',
+    name: '',
+    description: '',
+    source_provider: 'ECMWF / Copernicus',
+    access_level: 'INTERNAL',
+    is_active: true,
+    policies: []
+});
+
 const AdminDatasetsRoute = () => {
-    const [activeTab, setActiveTab] = useState('datasets'); // 'datasets' | 'variables' | 'policies'
+    const [activeTab, setActiveTab] = useState('datasets'); // 'datasets' | 'variables'
     const [datasets, setDatasets] = useState([]);
     const [variables, setVariables] = useState([]);
-    const [policies, setPolicies] = useState([]);
+    const [groups, setGroups] = useState([]);
     const [selectedDatasetFilter, setSelectedDatasetFilter] = useState('');
     const [loading, setLoading] = useState(false);
     const [feedback, setFeedback] = useState(null);
 
     // Modal Dataset
     const [showDatasetModal, setShowDatasetModal] = useState(false);
-    const [datasetForm, setDatasetForm] = useState({
-        id: null,
-        code: '',
-        name: '',
-        category: 'GRIDDED',
-        description: '',
-        source_provider: 'ECMWF / Copernicus',
-        access_level: 'INTERNAL',
-        is_active: true
-    });
+    const [datasetForm, setDatasetForm] = useState(emptyForm());
 
     const loadAll = () => {
         setLoading(true);
         Promise.allSettled([
             getAdminDatasets(),
             getAdminDatasetVariables(selectedDatasetFilter ? { dataset: selectedDatasetFilter } : {}),
-            getDatasetAccessPolicies()
-        ]).then(([dsRes, varRes, polRes]) => {
+            getUserGroups()
+        ]).then(([dsRes, varRes, groupRes]) => {
             if (dsRes.status === 'fulfilled') {
                 setDatasets(dsRes.value);
             } else {
@@ -59,8 +60,8 @@ const AdminDatasetsRoute = () => {
             if (varRes.status === 'fulfilled') {
                 setVariables(varRes.value);
             }
-            if (polRes.status === 'fulfilled') {
-                setPolicies(polRes.value);
+            if (groupRes.status === 'fulfilled') {
+                setGroups(groupRes.value);
             }
             setLoading(false);
         });
@@ -70,16 +71,50 @@ const AdminDatasetsRoute = () => {
         loadAll();
     }, [selectedDatasetFilter]);
 
+    const togglePolicyGroup = (groupId, checked) => {
+        setDatasetForm(prev => ({
+            ...prev,
+            policies: checked
+                ? [...prev.policies, { group: groupId, can_download: false }]
+                : prev.policies.filter(p => p.group !== groupId)
+        }));
+    };
+
+    const setPolicyDownload = (groupId, value) => {
+        setDatasetForm(prev => ({
+            ...prev,
+            policies: prev.policies.map(p => (p.group === groupId ? { ...p, can_download: value } : p))
+        }));
+    };
+
+    const openEditModal = (d) => {
+        setDatasetForm({
+            id: d.id,
+            code: d.code,
+            name: d.name,
+            description: d.description || '',
+            source_provider: d.source_provider || '',
+            access_level: d.access_level,
+            is_active: d.is_active,
+            policies: (d.access_policies || []).map(p => ({ group: p.group, can_download: p.can_download }))
+        });
+        setShowDatasetModal(true);
+    };
+
     const handleSaveDataset = (e) => {
         e.preventDefault();
         const payload = {
             code: datasetForm.code,
             name: datasetForm.name,
-            category: datasetForm.category,
             description: datasetForm.description,
             source_provider: datasetForm.source_provider,
             access_level: datasetForm.access_level,
-            is_active: datasetForm.is_active
+            is_active: datasetForm.is_active,
+            access_policies: datasetForm.access_level === 'RESTRICTED'
+                ? datasetForm.policies.map(p => ({ group: p.group, can_view: true, can_download: p.can_download }))
+                : [],
+            // Mọi bộ dữ liệu tạo ở đây đều là dữ liệu lưới
+            ...(datasetForm.id ? {} : { category: 'GRIDDED' })
         };
 
         const promise = datasetForm.id
@@ -112,26 +147,17 @@ const AdminDatasetsRoute = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                 <div>
                     <h2 style={{ fontSize: '24px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
-                        Bộ dữ liệu và phân quyền truy cập
+                        Bộ dữ liệu và quyền xem
                     </h2>
                     <p style={{ color: '#64748b', fontSize: '14px', margin: '4px 0 0 0' }}>
-                        Quản lý các nguồn dữ liệu tái phân tích và quan trắc, danh mục biến khí tượng và phân quyền truy cập cho người dùng.
+                        Quản lý các bộ dữ liệu gió dạng lưới, danh mục biến và người được xem từng bộ dữ liệu.
                     </p>
                 </div>
                 <div>
                     {activeTab === 'datasets' && (
                         <button
                             onClick={() => {
-                                setDatasetForm({
-                                    id: null,
-                                    code: '',
-                                    name: '',
-                                    category: 'GRIDDED',
-                                    description: '',
-                                    source_provider: 'ECMWF / Copernicus',
-                                    access_level: 'INTERNAL',
-                                    is_active: true
-                                });
+                                setDatasetForm(emptyForm());
                                 setShowDatasetModal(true);
                             }}
                             className="btn btn-primary"
@@ -182,21 +208,6 @@ const AdminDatasetsRoute = () => {
                 >
                     <i className="fa fa-sliders" style={{ marginRight: '8px' }}></i>Biến dữ liệu ({variables.length})
                 </button>
-                <button
-                    onClick={() => setActiveTab('policies')}
-                    style={{
-                        padding: '10px 18px',
-                        border: 'none',
-                        background: 'transparent',
-                        fontWeight: activeTab === 'policies' ? 600 : 500,
-                        color: activeTab === 'policies' ? '#0284c7' : '#64748b',
-                        borderBottom: activeTab === 'policies' ? '2px solid #0284c7' : '2px solid transparent',
-                        fontSize: '14px',
-                        cursor: 'pointer'
-                    }}
-                >
-                    <i className="fa fa-shield" style={{ marginRight: '8px' }}></i>Chính sách phân quyền ({policies.length})
-                </button>
             </div>
 
             {/* TAB 1: Datasets */}
@@ -208,9 +219,8 @@ const AdminDatasetsRoute = () => {
                                 <tr style={{ background: '#f8fafc', color: '#475569', fontSize: '12px', textTransform: 'uppercase' }}>
                                     <th style={{ padding: '12px 14px' }}>Mã bộ dữ liệu</th>
                                     <th style={{ padding: '12px 14px' }}>Tên bộ dữ liệu</th>
-                                    <th style={{ padding: '12px 14px' }}>Phân loại</th>
                                     <th style={{ padding: '12px 14px' }}>Nguồn cung cấp</th>
-                                    <th style={{ padding: '12px 14px' }}>Cấp truy cập</th>
+                                    <th style={{ padding: '12px 14px' }}>Ai được xem</th>
                                     <th style={{ padding: '12px 14px' }}>Kích hoạt</th>
                                     <th style={{ padding: '12px 14px', textAlign: 'right' }}>Thao tác</th>
                                 </tr>
@@ -218,7 +228,7 @@ const AdminDatasetsRoute = () => {
                             <tbody style={{ fontSize: '13px' }}>
                                 {datasets.length === 0 ? (
                                     <tr>
-                                        <td colSpan="7" style={{ textAlign: 'center', padding: '24px', color: '#94a3b8' }}>
+                                        <td colSpan="6" style={{ textAlign: 'center', padding: '24px', color: '#94a3b8' }}>
                                             {loading ? 'Đang tải dữ liệu...' : 'Chưa có bộ dữ liệu nào.'}
                                         </td>
                                     </tr>
@@ -227,9 +237,6 @@ const AdminDatasetsRoute = () => {
                                         <tr key={d.id}>
                                             <td style={{ padding: '12px 14px', fontWeight: 600, color: '#0284c7' }}>{d.code}</td>
                                             <td style={{ padding: '12px 14px', fontWeight: 600, color: '#0f172a' }}>{d.name}</td>
-                                            <td style={{ padding: '12px 14px' }}>
-                                                <span className="badge" style={{ backgroundColor: '#6366f1' }}>{CATEGORY_LABELS[d.category] || d.category}</span>
-                                            </td>
                                             <td style={{ padding: '12px 14px', color: '#64748b' }}>{d.source_provider || '-'}</td>
                                             <td style={{ padding: '12px 14px' }}>
                                                 <span className={`label label-${d.access_level === 'PUBLIC' ? 'success' : d.access_level === 'INTERNAL' ? 'info' : 'warning'}`}>
@@ -245,19 +252,7 @@ const AdminDatasetsRoute = () => {
                                             </td>
                                             <td style={{ padding: '12px 14px', textAlign: 'right' }}>
                                                 <button
-                                                    onClick={() => {
-                                                        setDatasetForm({
-                                                            id: d.id,
-                                                            code: d.code,
-                                                            name: d.name,
-                                                            category: d.category,
-                                                            description: d.description || '',
-                                                            source_provider: d.source_provider || '',
-                                                            access_level: d.access_level,
-                                                            is_active: d.is_active
-                                                        });
-                                                        setShowDatasetModal(true);
-                                                    }}
+                                                    onClick={() => openEditModal(d)}
                                                     className="btn btn-xs btn-default"
                                                     style={{ marginRight: '6px' }}
                                                     title="Chỉnh sửa"
@@ -344,52 +339,6 @@ const AdminDatasetsRoute = () => {
                 </div>
             )}
 
-            {/* TAB 3: Access Policies */}
-            {activeTab === 'policies' && (
-                <div style={{ background: '#ffffff', borderRadius: '12px', padding: '20px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-                    <div className="table-responsive">
-                        <table className="table table-hover" style={{ margin: 0 }}>
-                            <thead>
-                                <tr style={{ background: '#f8fafc', color: '#475569', fontSize: '12px', textTransform: 'uppercase' }}>
-                                    <th style={{ padding: '12px 14px' }}>Mã chính sách</th>
-                                    <th style={{ padding: '12px 14px' }}>Bộ dữ liệu</th>
-                                    <th style={{ padding: '12px 14px' }}>Nhóm người dùng</th>
-                                    <th style={{ padding: '12px 14px' }}>Xem</th>
-                                    <th style={{ padding: '12px 14px' }}>Truy vấn</th>
-                                    <th style={{ padding: '12px 14px' }}>Tải về</th>
-                                </tr>
-                            </thead>
-                            <tbody style={{ fontSize: '13px' }}>
-                                {policies.length === 0 ? (
-                                    <tr>
-                                        <td colSpan="6" style={{ textAlign: 'center', padding: '24px', color: '#94a3b8' }}>
-                                            {loading ? 'Đang tải chính sách...' : 'Chưa có chính sách phân quyền riêng. Mặc định theo cấp truy cập của bộ dữ liệu.'}
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    policies.map(p => (
-                                        <tr key={p.id}>
-                                            <td style={{ padding: '12px 14px', fontWeight: 600 }}>#{p.id}</td>
-                                            <td style={{ padding: '12px 14px', fontWeight: 600 }}>{p.dataset_name || `Bộ #${p.dataset}`}</td>
-                                            <td style={{ padding: '12px 14px' }}>{p.group_name || `Nhóm #${p.group}`}</td>
-                                            <td style={{ padding: '12px 14px' }}>
-                                                {p.can_view ? <span className="label label-success" style={{ backgroundColor: '#10b981' }}>Có</span> : <span className="label label-default">Không</span>}
-                                            </td>
-                                            <td style={{ padding: '12px 14px' }}>
-                                                {p.can_query ? <span className="label label-success" style={{ backgroundColor: '#10b981' }}>Có</span> : <span className="label label-default">Không</span>}
-                                            </td>
-                                            <td style={{ padding: '12px 14px' }}>
-                                                {p.can_download ? <span className="label label-success" style={{ backgroundColor: '#10b981' }}>Có</span> : <span className="label label-default">Không</span>}
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            )}
-
             {/* Modal Dataset */}
             {showDatasetModal && (
                 <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 100000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -422,32 +371,56 @@ const AdminDatasetsRoute = () => {
                                     />
                                 </div>
                             </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
-                                <div className="form-group">
-                                    <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Phân loại</label>
-                                    <select
-                                        className="form-control"
-                                        value={datasetForm.category}
-                                        onChange={e => setDatasetForm({ ...datasetForm, category: e.target.value })}
-                                    >
-                                        <option value="GRIDDED">Lưới tọa độ</option>
-                                        <option value="STATION">Trạm quan trắc</option>
-                                        <option value="SATELLITE">Vệ tinh viễn thám</option>
-                                        <option value="EVENT">Hiện tượng cực đoan và bão</option>
-                                    </select>
-                                </div>
-                                <div className="form-group">
-                                    <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Cấp độ truy cập</label>
-                                    <select
-                                        className="form-control"
-                                        value={datasetForm.access_level}
-                                        onChange={e => setDatasetForm({ ...datasetForm, access_level: e.target.value })}
-                                    >
-                                        <option value="PUBLIC">Công khai</option>
-                                        <option value="INTERNAL">Nội bộ, cần đăng nhập</option>
-                                        <option value="RESTRICTED">Giới hạn theo nhóm</option>
-                                    </select>
-                                </div>
+                            <div className="form-group" style={{ marginBottom: '14px' }}>
+                                <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Ai được xem</label>
+                                {ACCESS_OPTIONS.map(opt => (
+                                    <label key={opt.value} style={{ display: 'block', fontWeight: 400, margin: '6px 0', cursor: 'pointer' }}>
+                                        <input
+                                            type="radio"
+                                            name="dataset-access-level"
+                                            checked={datasetForm.access_level === opt.value}
+                                            onChange={() => setDatasetForm({ ...datasetForm, access_level: opt.value })}
+                                            style={{ marginRight: '8px' }}
+                                        />
+                                        <span style={{ fontWeight: 600, color: '#0f172a' }}>{opt.title}</span>
+                                        <span style={{ color: '#64748b', fontSize: '12px', marginLeft: '8px' }}>{opt.hint}</span>
+                                    </label>
+                                ))}
+                                {datasetForm.access_level === 'RESTRICTED' && (
+                                    <div data-testid="dataset-group-list" style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px 12px', marginTop: '8px', maxHeight: '180px', overflowY: 'auto' }}>
+                                        {groups.length === 0 ? (
+                                            <div style={{ color: '#94a3b8', fontSize: '13px' }}>Chưa có nhóm người dùng nào để chọn.</div>
+                                        ) : (
+                                            groups.map(g => {
+                                                const policy = datasetForm.policies.find(p => p.group === g.id);
+                                                return (
+                                                    <div key={g.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0' }}>
+                                                        <label style={{ fontWeight: 500, margin: 0, cursor: 'pointer' }}>
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={!!policy}
+                                                                onChange={e => togglePolicyGroup(g.id, e.target.checked)}
+                                                                style={{ marginRight: '8px' }}
+                                                            />
+                                                            {g.name}
+                                                        </label>
+                                                        {policy && (
+                                                            <label style={{ fontWeight: 400, fontSize: '12px', color: '#475569', margin: 0, cursor: 'pointer' }}>
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={policy.can_download}
+                                                                    onChange={e => setPolicyDownload(g.id, e.target.checked)}
+                                                                    style={{ marginRight: '6px' }}
+                                                                />
+                                                                Cho phép tải về
+                                                            </label>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })
+                                        )}
+                                    </div>
+                                )}
                             </div>
                             <div className="form-group" style={{ marginBottom: '14px' }}>
                                 <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Nguồn cung cấp</label>
