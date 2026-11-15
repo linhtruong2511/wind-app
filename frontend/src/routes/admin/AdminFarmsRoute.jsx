@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
 import {
     getAdminFarms,
@@ -25,8 +25,57 @@ const FOUNDATION_LABELS = {
     ONSHORE: 'Móng trụ bê tông trên bờ'
 };
 
+// Tệp CSV mẫu để nhập danh sách tuabin
+const TURBINE_CSV_HEADER = ['ma_trang_trai', 'ma_tuabin', 'kinh_do', 'vi_do', 'cong_suat_mw', 'do_sau_m', 'trang_thai'];
+const TURBINE_CSV_SAMPLE_ROWS = [
+    ['BAC_LIEU_1', '1', '105.748', '9.245', '4.0', '15.0', 'OPERATING'],
+    ['BAC_LIEU_1', '2', '105.752', '9.248', '4.0', '15.5', 'OPERATING']
+];
+
+// Phân tích nội dung CSV, hỗ trợ trường đặt trong dấu nháy kép
+const parseCsv = (text) => {
+    const rows = [];
+    let row = [];
+    let field = '';
+    let inQuotes = false;
+    const content = text.replace(/^﻿/, '');
+    for (let i = 0; i < content.length; i++) {
+        const ch = content[i];
+        if (inQuotes) {
+            if (ch === '"' && content[i + 1] === '"') {
+                field += '"';
+                i++;
+            } else if (ch === '"') {
+                inQuotes = false;
+            } else {
+                field += ch;
+            }
+        } else if (ch === '"') {
+            inQuotes = true;
+        } else if (ch === ',') {
+            row.push(field);
+            field = '';
+        } else if (ch === '\n' || ch === '\r') {
+            if (ch === '\r' && content[i + 1] === '\n') i++;
+            row.push(field);
+            field = '';
+            rows.push(row);
+            row = [];
+        } else {
+            field += ch;
+        }
+    }
+    if (field !== '' || row.length > 0) {
+        row.push(field);
+        rows.push(row);
+    }
+    return rows.filter(r => r.some(cell => cell.trim() !== ''));
+};
+
 const AdminFarmsRoute = () => {
     const [activeTab, setActiveTab] = useState('farms'); // 'farms' | 'turbines'
+    const [importLoading, setImportLoading] = useState(false);
+    const turbineFileInputRef = useRef(null);
     const [farms, setFarms] = useState([]);
     const [turbines, setTurbines] = useState([]);
     const [selectedFarmFilter, setSelectedFarmFilter] = useState('');
@@ -150,6 +199,98 @@ const AdminFarmsRoute = () => {
         });
     };
 
+    const handleDownloadTurbineTemplate = () => {
+        const csvLines = [TURBINE_CSV_HEADER, ...TURBINE_CSV_SAMPLE_ROWS].map(row => row.join(',')).join('\r\n');
+        // BOM giúp Excel nhận đúng mã hóa UTF-8
+        const blob = new Blob(['﻿' + csvLines + '\r\n'], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'mau_import_tuabin_gio.csv';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    };
+
+    const handleImportTurbineFile = async (e) => {
+        const file = e.target.files && e.target.files[0];
+        e.target.value = '';
+        if (!file) return;
+
+        setImportLoading(true);
+        setFeedback(null);
+        try {
+            const rows = parseCsv(await file.text());
+            const header = (rows[0] || []).map(h => h.trim().toLowerCase());
+            const missing = TURBINE_CSV_HEADER.slice(0, 4).filter(col => !header.includes(col));
+            if (missing.length > 0) {
+                setFeedback({ type: 'danger', message: 'Tệp thiếu các cột bắt buộc: ' + missing.join(', ') + '. Vui lòng tải tệp mẫu để đối chiếu.' });
+                return;
+            }
+            const dataRows = rows.slice(1);
+            if (dataRows.length === 0) {
+                setFeedback({ type: 'danger', message: 'Tệp không có dòng dữ liệu nào.' });
+                return;
+            }
+
+            const farmByCode = {};
+            farms.forEach(f => { farmByCode[String(f.code).trim().toLowerCase()] = f; });
+            const col = (cells, name) => {
+                const idx = header.indexOf(name);
+                return idx >= 0 && cells[idx] !== undefined ? cells[idx].trim() : '';
+            };
+
+            let success = 0;
+            const errors = [];
+            for (let i = 0; i < dataRows.length; i++) {
+                const cells = dataRows[i];
+                const lineNo = i + 2;
+                const farm = farmByCode[col(cells, 'ma_trang_trai').toLowerCase()];
+                const lon = parseFloat(col(cells, 'kinh_do'));
+                const lat = parseFloat(col(cells, 'vi_do'));
+                if (!farm) {
+                    errors.push(`Dòng ${lineNo}: không tìm thấy trang trại "${col(cells, 'ma_trang_trai')}"`);
+                    continue;
+                }
+                if (!col(cells, 'ma_tuabin') || Number.isNaN(lon) || Number.isNaN(lat)) {
+                    errors.push(`Dòng ${lineNo}: thiếu mã tuabin hoặc tọa độ không hợp lệ`);
+                    continue;
+                }
+                const payload = {
+                    point_id: col(cells, 'ma_tuabin'),
+                    farm: farm.id,
+                    geom: `SRID=4326;POINT(${lon} ${lat})`,
+                    status: col(cells, 'trang_thai') || 'OPERATING'
+                };
+                const capacity = parseFloat(col(cells, 'cong_suat_mw'));
+                const depth = parseFloat(col(cells, 'do_sau_m'));
+                if (!Number.isNaN(capacity)) payload.capacity_mw = capacity;
+                if (!Number.isNaN(depth)) payload.depth_m = depth;
+
+                try {
+                    await createTurbine(payload);
+                    success++;
+                } catch (err) {
+                    errors.push(`Dòng ${lineNo}: ${JSON.stringify(err.response?.data || err.message)}`);
+                }
+            }
+
+            if (errors.length === 0) {
+                setFeedback({ type: 'success', message: `Đã nhập thành công ${success} tuabin.` });
+            } else {
+                const shown = errors.slice(0, 5).join('; ');
+                const more = errors.length > 5 ? ` và ${errors.length - 5} lỗi khác` : '';
+                setFeedback({ type: 'danger', message: `Nhập thành công ${success}, thất bại ${errors.length} dòng. ${shown}${more}` });
+            }
+            loadAll();
+        } catch (err) {
+            setFeedback({ type: 'danger', message: 'Không thể đọc tệp: ' + err.message });
+        } finally {
+            setImportLoading(false);
+        }
+    };
+
     return (
         <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
             {/* Header */}
@@ -184,26 +325,54 @@ const AdminFarmsRoute = () => {
                             <i className="fa fa-plus"></i>Thêm trang trại gió
                         </button>
                     ) : (
-                        <button
-                            onClick={() => {
-                                setTurbineForm({
-                                    point_id: `TB_${Date.now().toString().slice(-4)}`,
-                                    name: '',
-                                    farm: farms[0]?.id || '',
-                                    capacity_mw: 4.0,
-                                    foundation_type: 'MONOPILE',
-                                    depth_m: 15.0,
-                                    lat: '',
-                                    lon: '',
-                                    status: 'OPERATING'
-                                });
-                                setShowTurbineModal(true);
-                            }}
-                            className="btn btn-primary"
-                            style={{ display: 'flex', alignItems: 'center', gap: '6px', borderRadius: '6px', fontWeight: 600 }}
-                        >
-                            <i className="fa fa-plus"></i>Thêm tuabin gió
-                        </button>
+                        <div className="btn-group">
+                            <button
+                                type="button"
+                                onClick={handleDownloadTurbineTemplate}
+                                className="btn btn-default"
+                                style={{ fontWeight: 600 }}
+                            >
+                                <i className="fa fa-download" style={{ marginRight: '6px' }}></i>Tải tệp mẫu
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => turbineFileInputRef.current && turbineFileInputRef.current.click()}
+                                className="btn btn-default"
+                                disabled={importLoading}
+                                style={{ fontWeight: 600 }}
+                            >
+                                <i className={`fa ${importLoading ? 'fa-spinner fa-spin' : 'fa-upload'}`} style={{ marginRight: '6px' }}></i>
+                                {importLoading ? 'Đang nhập...' : 'Nhập từ tệp CSV'}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setTurbineForm({
+                                        point_id: `TB_${Date.now().toString().slice(-4)}`,
+                                        name: '',
+                                        farm: farms[0]?.id || '',
+                                        capacity_mw: 4.0,
+                                        foundation_type: 'MONOPILE',
+                                        depth_m: 15.0,
+                                        lat: '',
+                                        lon: '',
+                                        status: 'OPERATING'
+                                    });
+                                    setShowTurbineModal(true);
+                                }}
+                                className="btn btn-primary"
+                                style={{ fontWeight: 600 }}
+                            >
+                                <i className="fa fa-plus" style={{ marginRight: '6px' }}></i>Thêm tuabin gió
+                            </button>
+                            <input
+                                ref={turbineFileInputRef}
+                                type="file"
+                                accept=".csv"
+                                onChange={handleImportTurbineFile}
+                                style={{ display: 'none' }}
+                            />
+                        </div>
                     )}
                 </div>
             </div>
