@@ -3,29 +3,8 @@ from rest_framework import serializers
 from rest_framework_gis.fields import GeometryField
 from rest_framework_gis.serializers import GeoFeatureModelSerializer
 
-from .models import Observation, Station
-
-
-class ObservationSerializer(serializers.ModelSerializer):
-    station_code = serializers.CharField(source="station.station_code", read_only=True)
-
-    class Meta:
-        model = Observation
-        fields = [
-            "id",
-            "station",
-            "station_code",
-            "obs_time",
-            "rain_06h",
-            "rain_24h",
-            "temp_2m",
-            "temp_min",
-            "temp_max",
-            "humidity",
-            "pressure",
-            "wind_dir",
-            "wind_speed",
-        ]
+from .models import Station
+from .services.observation_lake_service import get_latest_observation
 
 
 class StationSerializer(serializers.ModelSerializer):
@@ -80,10 +59,7 @@ class StationSerializer(serializers.ModelSerializer):
         return super().update(instance, validated_data)
 
     def get_latest_observation(self, obj):
-        latest = obj.observations.order_by("-obs_time").first()
-        if latest:
-            return ObservationSerializer(latest).data
-        return None
+        return get_latest_observation(obj.station_code)
 
     def get_lat(self, obj):
         return obj.geom.y if obj.geom else None
@@ -110,7 +86,4 @@ class StationGeoSerializer(GeoFeatureModelSerializer):
         ]
 
     def get_latest_observation(self, obj):
-        latest = obj.observations.order_by("-obs_time").first()
-        if latest:
-            return ObservationSerializer(latest).data
-        return None
+        return get_latest_observation(obj.station_code)

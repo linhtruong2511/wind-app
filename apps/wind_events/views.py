@@ -4,8 +4,8 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from wind_core.utils import StandardResultsSetPagination
-from wind_stations.models import Observation, Station
-from wind_stations.serializers import ObservationSerializer
+from wind_stations.models import Station
+from wind_stations.services import observation_lake_service as lake
 from .models import MeteorologicalEvent
 from .serializers import MeteorologicalEventSerializer
 
@@ -44,22 +44,18 @@ class MeteorologicalEventViewSet(viewsets.ReadOnlyModelViewSet):
             geom__intersects=event.influence_area
         )
 
-        # 2. Lấy dữ liệu quan trắc của các trạm đó trong thời gian sự kiện diễn ra
-        obs_qs = (
-            Observation.objects.filter(
-                station__in=impacted_stations,
-                obs_time__gte=event.start_date,
-            )
-            .select_related("station")
-            .order_by("obs_time")
+        # 2. Lấy dữ liệu quan trắc của các trạm đó trong thời gian sự kiện diễn ra từ kho dữ liệu quan trắc
+        code_to_id = dict(impacted_stations.values_list("station_code", "id"))
+        obs_rows = lake.ObservationRows(
+            list(code_to_id.keys()),
+            code_to_id,
+            start=lake.parse_time_filter(event.start_date),
+            end=lake.parse_time_filter(end_date),
+            descending=False,
         )
-        if end_date:
-            obs_qs = obs_qs.filter(obs_time__lte=end_date)
 
-        page = self.paginate_queryset(obs_qs)
+        page = self.paginate_queryset(obs_rows)
         if page is not None:
-            serializer = ObservationSerializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
+            return self.get_paginated_response(page)
 
-        serializer = ObservationSerializer(obs_qs, many=True)
-        return Response(serializer.data)
+        return Response(obs_rows[0:])

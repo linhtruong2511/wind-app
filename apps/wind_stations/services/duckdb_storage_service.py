@@ -40,6 +40,13 @@ STANDARD_COLUMNS = [
 ]
 
 
+def _invalidate_latest_observation_cache():
+    # Import muộn để tránh vòng lặp import giữa hai service
+    from .observation_lake_service import invalidate_latest_cache
+
+    invalidate_latest_cache()
+
+
 def normalize_observation_df(df: pd.DataFrame) -> pd.DataFrame:
     """
     Chuẩn hóa dữ liệu đầu vào:
@@ -54,7 +61,11 @@ def normalize_observation_df(df: pd.DataFrame) -> pd.DataFrame:
     if "station_code" not in df.columns or "obs_time" not in df.columns:
         raise ValueError("Tệp dữ liệu bắt buộc phải có 2 cột: 'station_code' và 'obs_time'.")
 
-    df["station_code"] = df["station_code"].astype(str).str.strip()
+    # Chuẩn hóa mã trạm giống StationSerializer để khớp mã trạm trong danh sách trạm
+    # và không tạo thư mục lồng nhau khi mã có dấu gạch chéo.
+    df["station_code"] = (
+        df["station_code"].astype(str).str.strip().str.replace(r"[\s/\\]", "_", regex=True)
+    )
     df["obs_time"] = pd.to_datetime(df["obs_time"], errors="coerce")
     df = df.dropna(subset=["station_code", "obs_time"])
 
@@ -136,6 +147,7 @@ def ingest_dataframe_to_parquet(df: pd.DataFrame) -> dict:
 
     finally:
         con.close()
+        _invalidate_latest_observation_cache()
 
     total_rows = sum(a["rows_added"] for a in affected)
     return {
@@ -306,6 +318,7 @@ def delete_partition(station_code: str, year: int) -> bool:
         # Nếu thư mục trạm không còn file nào thì dọn dẹp thư mục
         if not any(parent_dir.iterdir()):
             parent_dir.rmdir()
+        _invalidate_latest_observation_cache()
         return True
     return False
 

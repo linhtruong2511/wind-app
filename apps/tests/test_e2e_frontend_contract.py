@@ -31,16 +31,26 @@ import os
 import tempfile
 from datetime import datetime, timezone
 import numpy as np
+import pandas as pd
 import xarray as xr
 from django.contrib.gis.geos import Point, Polygon
-from django.test import TestCase
+from django.test import TestCase, override_settings
+from django.utils import timezone as dj_timezone
 from rest_framework.test import APIClient
 
 from wind_core.models import Dataset, DatasetVariable
 from wind_energy.models import WindFarm, WindTurbine
 from wind_events.models import EventTrack, MeteorologicalEvent
 from wind_raster.models import RasterGranuleIndex
-from wind_stations.models import Observation, Station
+from wind_stations.models import Station
+from wind_stations.services.duckdb_storage_service import ingest_dataframe_to_parquet
+from wind_stations.services.observation_lake_service import invalidate_latest_cache
+
+
+def _obs(station_code, obs_time, **metrics):
+    """Một dòng quan trắc cho kho dữ liệu, thời gian quy về giờ địa phương không múi giờ."""
+    local_time = dj_timezone.localtime(obs_time).replace(tzinfo=None)
+    return {"station_code": station_code, "obs_time": local_time, **metrics}
 
 
 class FrontendE2EContractTestCase(TestCase):
@@ -48,6 +58,25 @@ class FrontendE2EContractTestCase(TestCase):
     E2E integration test suite verifying backend API contracts
     against frontend expectations defined in frontend/src/api/wind.js.
     """
+
+    @classmethod
+    def setUpClass(cls):
+        # Kho dữ liệu quan trắc riêng cho cả lớp test, tránh ghi vào kho thật
+        cls._lake_dir = tempfile.TemporaryDirectory()
+        cls._lake_override = override_settings(MEDIA_ROOT=cls._lake_dir.name)
+        cls._lake_override.enable()
+        invalidate_latest_cache()
+        try:
+            super().setUpClass()
+        except Exception:
+            cls._cleanup_lake()
+            raise
+
+    @classmethod
+    def _cleanup_lake(cls):
+        cls._lake_override.disable()
+        cls._lake_dir.cleanup()
+        invalidate_latest_cache()
 
     @classmethod
     def setUpTestData(cls):
@@ -130,7 +159,6 @@ class FrontendE2EContractTestCase(TestCase):
         # -------------------------------------------------------------
         # Station 1: Bạch Long Vĩ (Hải Phòng - Island)
         cls.station_blv = Station.objects.create(
-            dataset=cls.station_dataset,
             station_code="48839",
             name="Bạch Long Vĩ",
             geom=Point(107.72, 20.13, srid=4326),
@@ -141,7 +169,6 @@ class FrontendE2EContractTestCase(TestCase):
 
         # Station 2: Cô Tô (Quảng Ninh - Island)
         cls.station_coto = Station.objects.create(
-            dataset=cls.station_dataset,
             station_code="48838",
             name="Cô Tô",
             geom=Point(107.75, 20.95, srid=4326),
@@ -152,7 +179,6 @@ class FrontendE2EContractTestCase(TestCase):
 
         # Station 3: Phú Quốc (Kiên Giang - Coastal / Island South)
         cls.station_pq = Station.objects.create(
-            dataset=cls.station_dataset,
             station_code="48914",
             name="Phú Quốc",
             geom=Point(103.96, 10.22, srid=4326),
@@ -161,90 +187,30 @@ class FrontendE2EContractTestCase(TestCase):
             is_active=True,
         )
 
-        # Observations across January and February 2026
-        cls.obs_data = [
+        # Observations across January and February 2026, nạp vào kho dữ liệu quan trắc
+        ingest_dataframe_to_parquet(pd.DataFrame([
             # Bạch Long Vĩ observations
-            Observation.objects.create(
-                station=cls.station_blv,
-                obs_time=datetime(2026, 1, 15, 0, 0, tzinfo=timezone.utc),
-                wind_speed=8.5,
-                wind_dir=45.0,
-                temp_2m=21.5,
-                temp_min=19.0,
-                temp_max=24.0,
-                humidity=82.0,
-                pressure=1016.0,
-                rain_06h=0.0,
-                rain_24h=0.0,
-            ),
-            Observation.objects.create(
-                station=cls.station_blv,
-                obs_time=datetime(2026, 1, 15, 6, 0, tzinfo=timezone.utc),
-                wind_speed=12.0,
-                wind_dir=50.0,
-                temp_2m=22.8,
-                temp_min=20.0,
-                temp_max=25.0,
-                humidity=78.0,
-                pressure=1014.5,
-                rain_06h=1.2,
-                rain_24h=1.2,
-            ),
-            Observation.objects.create(
-                station=cls.station_blv,
-                obs_time=datetime(2026, 2, 10, 12, 0, tzinfo=timezone.utc),
-                wind_speed=18.5,
-                wind_dir=60.0,
-                temp_2m=18.0,
-                temp_min=16.0,
-                temp_max=20.0,
-                humidity=85.0,
-                pressure=1020.0,
-                rain_06h=5.0,
-                rain_24h=15.0,
-            ),
+            _obs("48839", datetime(2026, 1, 15, 0, 0, tzinfo=timezone.utc),
+                 wind_speed=8.5, wind_dir=45.0, temp_2m=21.5, temp_min=19.0, temp_max=24.0,
+                 humidity=82.0, pressure=1016.0, rain_06h=0.0, rain_24h=0.0),
+            _obs("48839", datetime(2026, 1, 15, 6, 0, tzinfo=timezone.utc),
+                 wind_speed=12.0, wind_dir=50.0, temp_2m=22.8, temp_min=20.0, temp_max=25.0,
+                 humidity=78.0, pressure=1014.5, rain_06h=1.2, rain_24h=1.2),
+            _obs("48839", datetime(2026, 2, 10, 12, 0, tzinfo=timezone.utc),
+                 wind_speed=18.5, wind_dir=60.0, temp_2m=18.0, temp_min=16.0, temp_max=20.0,
+                 humidity=85.0, pressure=1020.0, rain_06h=5.0, rain_24h=15.0),
             # Cô Tô observations
-            Observation.objects.create(
-                station=cls.station_coto,
-                obs_time=datetime(2026, 1, 15, 6, 0, tzinfo=timezone.utc),
-                wind_speed=11.2,
-                wind_dir=40.0,
-                temp_2m=20.5,
-                temp_min=18.0,
-                temp_max=23.0,
-                humidity=80.0,
-                pressure=1015.0,
-                rain_06h=0.5,
-                rain_24h=0.5,
-            ),
-            Observation.objects.create(
-                station=cls.station_coto,
-                obs_time=datetime(2026, 2, 10, 12, 0, tzinfo=timezone.utc),
-                wind_speed=16.0,
-                wind_dir=55.0,
-                temp_2m=17.5,
-                temp_min=15.0,
-                temp_max=19.5,
-                humidity=88.0,
-                pressure=1019.0,
-                rain_06h=8.0,
-                rain_24h=20.0,
-            ),
+            _obs("48838", datetime(2026, 1, 15, 6, 0, tzinfo=timezone.utc),
+                 wind_speed=11.2, wind_dir=40.0, temp_2m=20.5, temp_min=18.0, temp_max=23.0,
+                 humidity=80.0, pressure=1015.0, rain_06h=0.5, rain_24h=0.5),
+            _obs("48838", datetime(2026, 2, 10, 12, 0, tzinfo=timezone.utc),
+                 wind_speed=16.0, wind_dir=55.0, temp_2m=17.5, temp_min=15.0, temp_max=19.5,
+                 humidity=88.0, pressure=1019.0, rain_06h=8.0, rain_24h=20.0),
             # Phú Quốc observations
-            Observation.objects.create(
-                station=cls.station_pq,
-                obs_time=datetime(2026, 1, 15, 6, 0, tzinfo=timezone.utc),
-                wind_speed=5.4,
-                wind_dir=210.0,
-                temp_2m=28.5,
-                temp_min=25.0,
-                temp_max=32.0,
-                humidity=75.0,
-                pressure=1010.0,
-                rain_06h=0.0,
-                rain_24h=0.0,
-            ),
-        ]
+            _obs("48914", datetime(2026, 1, 15, 6, 0, tzinfo=timezone.utc),
+                 wind_speed=5.4, wind_dir=210.0, temp_2m=28.5, temp_min=25.0, temp_max=32.0,
+                 humidity=75.0, pressure=1010.0, rain_06h=0.0, rain_24h=0.0),
+        ]))
 
         # -------------------------------------------------------------
         # 3. Meteorological Events & Tracks (wind_events)
@@ -319,7 +285,6 @@ class FrontendE2EContractTestCase(TestCase):
             location_name="Vịnh Bắc Bộ",
             status="OPERATING",
             total_capacity_mw=120.0,
-            dataset=cls.grid_dataset,
             boundary=Polygon.from_bbox((107.5, 20.0, 108.0, 20.5)),
         )
 
@@ -350,6 +315,7 @@ class FrontendE2EContractTestCase(TestCase):
     @classmethod
     def tearDownClass(cls):
         super().tearDownClass()
+        cls._cleanup_lake()
         if hasattr(cls, "tmp_nc_path") and os.path.exists(cls.tmp_nc_path):
             try:
                 os.remove(cls.tmp_nc_path)

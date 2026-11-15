@@ -5,13 +5,18 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from wind_core.models import Dataset
 from wind_events.models import EventTrack, MeteorologicalEvent
 from wind_events.serializers import (
     EventTrackSerializer,
     MeteorologicalEventSerializer,
 )
-from wind_stations.models import Observation, Station
+from wind_stations.models import Station
+from wind_stations.testing import LakeTestMixin
+
+
+def _lake_time(value):
+    """Giờ địa phương không múi giờ, cùng quy ước với số liệu trong kho Parquet."""
+    return timezone.localtime(value).replace(tzinfo=None).isoformat(sep=" ")
 
 
 class MeteorologicalEventModelTest(TestCase):
@@ -142,8 +147,9 @@ class MeteorologicalEventSerializerTest(TestCase):
 
 
 @override_settings(ROOT_URLCONF="wind_events.urls")
-class MeteorologicalEventViewSetApiTest(TestCase):
+class MeteorologicalEventViewSetApiTest(LakeTestMixin, TestCase):
     def setUp(self):
+        super().setUp()
         self.client = APIClient()
         self.polygon = Polygon(
             (
@@ -188,11 +194,7 @@ class MeteorologicalEventViewSetApiTest(TestCase):
 
         # Setup stations:
         # Station 1 inside polygon (107.72, 20.13)
-        self.dataset = Dataset.objects.create(
-            code="SYNOP_TEST", name="Synoptic Stations", category="STATION"
-        )
         self.station_inside = Station.objects.create(
-            dataset=self.dataset,
             station_code="48838",
             name="Trạm Bạch Long Vĩ",
             geom=Point(107.72, 20.13),
@@ -201,7 +203,6 @@ class MeteorologicalEventViewSetApiTest(TestCase):
         )
         # Station 2 outside polygon (108.20, 16.05) - Da Nang
         self.station_outside = Station.objects.create(
-            dataset=self.dataset,
             station_code="48855",
             name="Trạm Đà Nẵng",
             geom=Point(108.20, 16.05),
@@ -209,49 +210,34 @@ class MeteorologicalEventViewSetApiTest(TestCase):
             is_active=True,
         )
 
-        # Observations for Station 1 (inside)
-        # Obs 1: inside time range -> SHOULD BE INCLUDED
-        self.obs_valid = Observation.objects.create(
-            station=self.station_inside,
-            obs_time=self.start_date + datetime.timedelta(hours=12),
-            wind_speed=22.5,
-            wind_dir=80.0,
-            temp_2m=24.0,
-            pressure=990.0,
-            rain_24h=50.0,
-        )
-        # Obs 2: before start_date -> SHOULD BE EXCLUDED
-        self.obs_before = Observation.objects.create(
-            station=self.station_inside,
-            obs_time=self.start_date - datetime.timedelta(hours=2),
-            wind_speed=8.0,
-            wind_dir=90.0,
-            temp_2m=28.0,
-            pressure=1008.0,
-            rain_24h=0.0,
-        )
-        # Obs 3: after end_date -> SHOULD BE EXCLUDED
-        self.obs_after = Observation.objects.create(
-            station=self.station_inside,
-            obs_time=self.end_date + datetime.timedelta(hours=2),
-            wind_speed=9.0,
-            wind_dir=100.0,
-            temp_2m=27.0,
-            pressure=1006.0,
-            rain_24h=5.0,
-        )
-
-        # Observations for Station 2 (outside)
-        # Obs 4: within time range, but outside polygon -> SHOULD BE EXCLUDED
-        self.obs_outside_geom = Observation.objects.create(
-            station=self.station_outside,
-            obs_time=self.start_date + datetime.timedelta(hours=12),
-            wind_speed=5.0,
-            wind_dir=120.0,
-            temp_2m=30.0,
-            pressure=1010.0,
-            rain_24h=0.0,
-        )
+        # Số liệu quan trắc trong kho dữ liệu
+        # Trạm 1 (trong vùng ảnh hưởng):
+        #  - mốc giữa thời gian sự kiện: ĐƯỢC TÍNH
+        #  - mốc trước start_date và sau end_date: BỊ LOẠI
+        # Trạm 2 (ngoài vùng ảnh hưởng): BỊ LOẠI dù nằm trong thời gian sự kiện
+        self.obs_valid_time = self.start_date + datetime.timedelta(hours=12)
+        self.write_observations([
+            {
+                "station_code": "48838",
+                "obs_time": _lake_time(self.obs_valid_time),
+                "wind_speed": 22.5, "wind_dir": 80.0, "temp_2m": 24.0, "pressure": 990.0, "rain_24h": 50.0,
+            },
+            {
+                "station_code": "48838",
+                "obs_time": _lake_time(self.start_date - datetime.timedelta(hours=2)),
+                "wind_speed": 8.0, "wind_dir": 90.0, "temp_2m": 28.0, "pressure": 1008.0, "rain_24h": 0.0,
+            },
+            {
+                "station_code": "48838",
+                "obs_time": _lake_time(self.end_date + datetime.timedelta(hours=2)),
+                "wind_speed": 9.0, "wind_dir": 100.0, "temp_2m": 27.0, "pressure": 1006.0, "rain_24h": 5.0,
+            },
+            {
+                "station_code": "48855",
+                "obs_time": _lake_time(self.obs_valid_time),
+                "wind_speed": 5.0, "wind_dir": 120.0, "temp_2m": 30.0, "pressure": 1010.0, "rain_24h": 0.0,
+            },
+        ])
 
     def test_list_events(self):
         res = self.client.get("/events/")
@@ -293,7 +279,8 @@ class MeteorologicalEventViewSetApiTest(TestCase):
         self.assertEqual(data["count"], 1)
         results = data["results"]
         self.assertEqual(len(results), 1)
-        self.assertEqual(results[0]["id"], self.obs_valid.id)
+        self.assertEqual(results[0]["station"], self.station_inside.id)
+        self.assertEqual(results[0]["obs_time"], _lake_time(self.obs_valid_time).replace(" ", "T"))
         self.assertEqual(results[0]["station_code"], "48838")
         self.assertEqual(float(results[0]["wind_speed"]), 22.5)
 
@@ -320,7 +307,8 @@ class MeteorologicalEventViewSetApiTest(TestCase):
         data = res.json()
         # obs_valid is at start_date + 12h <= last_track_time (start_date + 18h)
         self.assertEqual(data["count"], 1)
-        self.assertEqual(data["results"][0]["id"], self.obs_valid.id)
+        self.assertEqual(data["results"][0]["station_code"], "48838")
+        self.assertEqual(data["results"][0]["wind_speed"], 22.5)
 
     def test_impacted_observations_missing_influence_area(self):
         event_no_geom = MeteorologicalEvent.objects.create(

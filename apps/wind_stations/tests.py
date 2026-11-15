@@ -1,37 +1,29 @@
 import csv
-import datetime
 from django.contrib.gis.geos import Point
 from django.test import TestCase, override_settings
-from django.utils import timezone
 from rest_framework.test import APIClient
 
-from wind_core.models import Dataset
-from wind_stations.models import Observation, Station
+from wind_stations.models import Station
 from wind_stations.serializers import (
-    ObservationSerializer,
     StationGeoSerializer,
     StationSerializer,
 )
+from wind_stations.services import observation_lake_service as lake
 from wind_stations.services.province_service import (
     get_province_geometry,
     get_provinces_wfs_data,
 )
 from wind_stations.services.station_service import (
     calculate_circular_mean,
-    calculate_wind_rose_data,
     get_station_summary_data,
 )
+from wind_stations.testing import LakeTestMixin
 
 
-class StationModelAndSerializerTestCase(TestCase):
+class StationModelAndSerializerTestCase(LakeTestMixin, TestCase):
     def setUp(self):
-        self.dataset = Dataset.objects.create(
-            code="STATION_DATA",
-            name="Stations Dataset",
-            category="STATION",
-        )
+        super().setUp()
         self.station = Station.objects.create(
-            dataset=self.dataset,
             station_code="WS01",
             name="Trạm Bạch Long Vĩ",
             geom=Point(107.72, 20.13),
@@ -48,65 +40,42 @@ class StationModelAndSerializerTestCase(TestCase):
         self.assertEqual(data["geometry"]["coordinates"], [107.72, 20.13])
         self.assertEqual(data["properties"]["station_code"], "WS01")
         self.assertEqual(data["properties"]["name"], "Trạm Bạch Long Vĩ")
-        self.assertEqual(data["properties"]["dataset_code"], "STATION_DATA")
         self.assertIsNone(data["properties"]["latest_observation"])
 
-    def test_station_serializer(self):
+    def test_station_serializer_without_observation(self):
         serializer = StationSerializer(self.station)
         data = serializer.data
         self.assertEqual(data["station_code"], "WS01")
         self.assertEqual(data["lat"], 20.13)
         self.assertEqual(data["lon"], 107.72)
-        self.assertEqual(data["dataset_code"], "STATION_DATA")
         self.assertIsNone(data["latest_observation"])
 
-    def test_observation_creation_and_latest_relation(self):
-        now = timezone.now()
-        obs1 = Observation.objects.create(
-            station=self.station,
-            obs_time=now - datetime.timedelta(hours=2),
-            temp_2m=24.5,
-            wind_speed=8.5,
-            wind_dir=90.0,
-            humidity=80.0,
-            pressure=1013.2,
-        )
-        obs2 = Observation.objects.create(
-            station=self.station,
-            obs_time=now - datetime.timedelta(hours=1),
-            temp_2m=26.0,
-            wind_speed=12.0,
-            wind_dir=120.0,
-            humidity=75.0,
-            pressure=1012.0,
-        )
-
+    def test_latest_observation_comes_from_lake(self):
+        self.write_observations([
+            {"station_code": "WS01", "obs_time": "2026-01-01 08:00:00", "temp_2m": 24.5, "wind_speed": 8.5},
+            {"station_code": "WS01", "obs_time": "2026-01-01 09:00:00", "temp_2m": 26.0, "wind_speed": 12.0},
+        ])
         self.assertEqual(str(self.station), "Trạm Bạch Long Vĩ (WS01)")
-        self.assertIn("WS01 @", str(obs2))
 
-        # Test latest_observation on StationSerializer
-        serializer = StationSerializer(self.station)
-        latest_data = serializer.data["latest_observation"]
-        self.assertIsNotNone(latest_data)
-        self.assertEqual(latest_data["id"], obs2.id)
-        self.assertEqual(float(latest_data["wind_speed"]), 12.0)
-        self.assertEqual(latest_data["station_code"], "WS01")
+        latest = StationSerializer(self.station).data["latest_observation"]
+        self.assertIsNotNone(latest)
+        self.assertEqual(latest["station"], self.station.id)
+        self.assertEqual(latest["station_code"], "WS01")
+        self.assertEqual(latest["obs_time"], "2026-01-01T09:00:00")
+        self.assertEqual(latest["wind_speed"], 12.0)
 
-        # Test ObservationSerializer
-        obs_serializer = ObservationSerializer(obs1)
-        self.assertEqual(obs_serializer.data["station_code"], "WS01")
-        self.assertEqual(float(obs_serializer.data["temp_2m"]), 24.5)
+    def test_latest_observation_refreshes_after_new_import(self):
+        self.write_observations([{"station_code": "WS01", "obs_time": "2026-01-01 08:00:00", "wind_speed": 1.0}])
+        self.assertEqual(StationSerializer(self.station).data["latest_observation"]["wind_speed"], 1.0)
+
+        self.write_observations([{"station_code": "WS01", "obs_time": "2026-01-02 08:00:00", "wind_speed": 3.0}])
+        self.assertEqual(StationSerializer(self.station).data["latest_observation"]["wind_speed"], 3.0)
 
 
-class StationServiceTestCase(TestCase):
+class StationServiceTestCase(LakeTestMixin, TestCase):
     def setUp(self):
-        self.dataset = Dataset.objects.create(
-            code="SERVICE_TEST_DS",
-            name="Service Test Dataset",
-            category="STATION",
-        )
+        super().setUp()
         self.station = Station.objects.create(
-            dataset=self.dataset,
             station_code="WS02",
             name="Trạm Cô Tô",
             geom=Point(107.75, 20.98),
@@ -114,53 +83,35 @@ class StationServiceTestCase(TestCase):
             station_type="SYNOP",
             is_active=True,
         )
-        base_time = timezone.make_aware(datetime.datetime(2026, 1, 15, 10, 0))
-        # Create observations across months
-        Observation.objects.create(
-            station=self.station,
-            obs_time=base_time,
-            wind_speed=5.0,
-            wind_dir=0.0,
-            temp_2m=20.0,
-            humidity=70.0,
-            pressure=1015.0,
-            rain_24h=2.0,
-        )
-        Observation.objects.create(
-            station=self.station,
-            obs_time=base_time + datetime.timedelta(hours=6),
-            wind_speed=15.0,
-            wind_dir=90.0,
-            temp_2m=24.0,
-            humidity=80.0,
-            pressure=1010.0,
-            rain_24h=8.0,
-        )
-        Observation.objects.create(
-            station=self.station,
-            obs_time=base_time + datetime.timedelta(days=40),
-            wind_speed=0.2,  # Calm
-            wind_dir=180.0,
-            temp_2m=28.0,
-            humidity=85.0,
-            pressure=1008.0,
-            rain_24h=0.0,
-        )
+        self.write_observations([
+            {
+                "station_code": "WS02", "obs_time": "2026-01-15 10:00:00",
+                "wind_speed": 5.0, "wind_dir": 0.0, "temp_2m": 20.0,
+                "humidity": 70.0, "pressure": 1015.0, "rain_24h": 2.0,
+            },
+            {
+                "station_code": "WS02", "obs_time": "2026-01-15 16:00:00",
+                "wind_speed": 15.0, "wind_dir": 90.0, "temp_2m": 24.0,
+                "humidity": 80.0, "pressure": 1010.0, "rain_24h": 8.0,
+            },
+            {
+                # Lặng gió
+                "station_code": "WS02", "obs_time": "2026-02-24 10:00:00",
+                "wind_speed": 0.2, "wind_dir": 180.0, "temp_2m": 28.0,
+                "humidity": 85.0, "pressure": 1008.0, "rain_24h": 0.0,
+            },
+        ])
 
     def test_circular_mean_calculation(self):
-        # 0 deg and 90 deg -> 45 deg
         mean_45 = calculate_circular_mean([0.0, 90.0])
         self.assertAlmostEqual(mean_45, 45.0, places=1)
 
-        # 350 deg and 10 deg -> 0.0 (or 360.0) deg
         mean_zero = calculate_circular_mean([350.0, 10.0])
         self.assertTrue(abs(mean_zero - 0.0) < 0.1 or abs(mean_zero - 360.0) < 0.1)
 
-        # Weighted circular mean: heavy weight on 90 deg
         weighted = calculate_circular_mean([0.0, 90.0], weights=[1.0, 10.0])
         self.assertGreater(weighted, 45.0)
 
-        # Empty or None input
         self.assertIsNone(calculate_circular_mean([]))
         self.assertIsNone(calculate_circular_mean([None, None]))
 
@@ -168,34 +119,53 @@ class StationServiceTestCase(TestCase):
         monthly = get_station_summary_data(self.station, summary_type="monthly")
         self.assertEqual(monthly["station_id"], self.station.id)
         self.assertEqual(monthly["station_name"], self.station.name)
-        self.assertEqual(len(monthly["results"]), 2)  # Jan and Feb
+        self.assertEqual(len(monthly["results"]), 2)  # Tháng 1 và tháng 2
+        self.assertEqual(monthly["results"][0]["month"], "2026-01-01T00:00:00")
+        self.assertEqual(monthly["results"][0]["total_records"], 2)
+        self.assertEqual(monthly["results"][0]["wind_speed_avg"], 10.0)
 
         yearly = get_station_summary_data(self.station, summary_type="yearly")
-        self.assertEqual(len(yearly["results"]), 1)  # Year 2026
+        self.assertEqual(len(yearly["results"]), 1)
         result_2026 = yearly["results"][0]
+        self.assertEqual(result_2026["year"], "2026-01-01T00:00:00")
         self.assertEqual(result_2026["total_records"], 3)
-        self.assertEqual(float(result_2026["wind_speed_max"]), 15.0)
-        self.assertEqual(float(result_2026["wind_speed_min"]), 0.2)
+        self.assertEqual(result_2026["wind_speed_max"], 15.0)
+        self.assertEqual(result_2026["wind_speed_min"], 0.2)
 
-    def test_calculate_wind_rose_data(self):
-        qs = Observation.objects.filter(station=self.station)
-        data = calculate_wind_rose_data(qs)
+    def test_station_summary_respects_time_range(self):
+        start = lake.parse_time_filter("2026-02-01T00:00:00Z")
+        monthly = get_station_summary_data(self.station, start, None, "monthly")
+        self.assertEqual(len(monthly["results"]), 1)
+        self.assertEqual(monthly["results"][0]["total_records"], 1)
+
+    def test_wind_rose_counts_calm_only_in_total(self):
+        data = lake.get_wind_rose(["WS02"])
         self.assertEqual(data["total_records"], 3)
         self.assertEqual(len(data["directions"]), 16)
         self.assertEqual(len(data["speed_bins"]), 6)
         self.assertAlmostEqual(data["calm_percent"], 33.33, places=1)
-        self.assertIn("distribution", data)
+        self.assertEqual(data["distribution"]["counts"], [0, 0, 1, 0, 0, 1])
         self.assertEqual(len(data["distribution"]["speed_ranges"]), 6)
+        # 5 m/s hướng 0 độ rơi vào hướng N, cấp 4 - 6 m/s
+        self.assertAlmostEqual(data["speed_bins"][2]["values"][0], 33.33, places=1)
 
-        # Test empty queryset
-        empty_data = calculate_wind_rose_data(Observation.objects.none())
-        self.assertEqual(empty_data["total_records"], 0)
-        self.assertEqual(empty_data["calm_percent"], 0.0)
+    def test_wind_rose_empty(self):
+        for codes in ([], ["KHONG_CO_DU_LIEU"]):
+            data = lake.get_wind_rose(codes)
+            self.assertEqual(data["total_records"], 0)
+            self.assertEqual(data["calm_percent"], 0.0)
+
+    def test_parse_time_filter(self):
+        self.assertIsNone(lake.parse_time_filter(None))
+        self.assertIsNone(lake.parse_time_filter(""))
+        self.assertEqual(lake.parse_time_filter("2026-03-04").isoformat(), "2026-03-04T00:00:00")
+        self.assertIsNone(lake.parse_time_filter("2026-03-04T10:00:00").tzinfo)
+        with self.assertRaises(ValueError):
+            lake.parse_time_filter("khong-phai-ngay")
 
 
 class ProvinceServiceTestCase(TestCase):
     def test_safe_fallback_no_crash(self):
-        # Province that does not exist should return None gracefully
         geom = get_province_geometry("NON_EXISTENT_PROVINCE_999")
         self.assertIsNone(geom)
 
@@ -210,16 +180,11 @@ class ProvinceServiceTestCase(TestCase):
 
 
 @override_settings(ROOT_URLCONF="wind_stations.urls")
-class StationAndObservationApiTestCase(TestCase):
+class StationAndObservationApiTestCase(LakeTestMixin, TestCase):
     def setUp(self):
+        super().setUp()
         self.client = APIClient()
-        self.dataset = Dataset.objects.create(
-            code="SYNOP_STAT",
-            name="Synoptic Stations",
-            category="STATION",
-        )
         self.station1 = Station.objects.create(
-            dataset=self.dataset,
             station_code="48838",
             name="Bach Long Vi",
             geom=Point(107.72, 20.13),
@@ -227,7 +192,6 @@ class StationAndObservationApiTestCase(TestCase):
             is_active=True,
         )
         self.station2 = Station.objects.create(
-            dataset=self.dataset,
             station_code="48855",
             name="Co To",
             geom=Point(107.75, 20.98),
@@ -235,7 +199,6 @@ class StationAndObservationApiTestCase(TestCase):
             is_active=True,
         )
         self.inactive_station = Station.objects.create(
-            dataset=self.dataset,
             station_code="INACTIVE_01",
             name="Tram Cu",
             geom=Point(106.0, 20.0),
@@ -243,46 +206,31 @@ class StationAndObservationApiTestCase(TestCase):
             is_active=False,
         )
 
-        now = timezone.now()
-        self.obs1 = Observation.objects.create(
-            station=self.station1,
-            obs_time=now - datetime.timedelta(hours=2),
-            wind_speed=12.5,
-            wind_dir=45.0,
-            temp_2m=25.0,
-            pressure=1012.0,
-            rain_24h=5.0,
-        )
-        self.obs2 = Observation.objects.create(
-            station=self.station1,
-            obs_time=now - datetime.timedelta(hours=1),
-            wind_speed=18.0,
-            wind_dir=90.0,
-            temp_2m=26.0,
-            pressure=1010.0,
-            rain_24h=10.0,
-        )
-        self.obs3 = Observation.objects.create(
-            station=self.station2,
-            obs_time=now - datetime.timedelta(hours=1),
-            wind_speed=8.0,
-            wind_dir=180.0,
-            temp_2m=27.0,
-            pressure=1011.0,
-            rain_24h=0.0,
-        )
+        self.write_observations([
+            {"station_code": "48838", "obs_time": "2026-01-10 08:00:00", "wind_speed": 12.5, "wind_dir": 45.0,
+             "temp_2m": 25.0, "pressure": 1012.0, "rain_24h": 5.0},
+            {"station_code": "48838", "obs_time": "2026-01-10 09:00:00", "wind_speed": 18.0, "wind_dir": 90.0,
+             "temp_2m": 26.0, "pressure": 1010.0, "rain_24h": 10.0},
+            {"station_code": "48855", "obs_time": "2026-01-10 09:00:00", "wind_speed": 8.0, "wind_dir": 180.0,
+             "temp_2m": 27.0, "pressure": 1011.0, "rain_24h": 0.0},
+        ])
 
     def test_list_stations_and_filters(self):
         res = self.client.get("/stations/")
         self.assertEqual(res.status_code, 200)
         data = res.json()
-        # Inactive stations should be excluded
+        # Trạm ngừng hoạt động không được liệt kê
         self.assertEqual(data["count"], 2)
 
-        # Search filter
         res_search = self.client.get("/stations/?search=Bach")
         self.assertEqual(res_search.status_code, 200)
         self.assertEqual(res_search.json()["count"], 1)
+
+    def test_station_list_includes_latest_observation(self):
+        res = self.client.get("/stations/?search=Bach")
+        latest = res.json()["results"][0]["latest_observation"]
+        self.assertEqual(latest["wind_speed"], 18.0)
+        self.assertEqual(latest["obs_time"], "2026-01-10T09:00:00")
 
     def test_station_map_action(self):
         res = self.client.get("/stations/map/")
@@ -294,7 +242,6 @@ class StationAndObservationApiTestCase(TestCase):
         self.assertIn("Bach Long Vi", feature_names)
 
     def test_station_spatial_query(self):
-        # Query near Bach Long Vi (107.72, 20.13) with radius 10km
         res = self.client.get("/stations/spatial_query/?lat=20.13&lon=107.72&radius_km=10")
         self.assertEqual(res.status_code, 200)
         data = res.json()
@@ -302,7 +249,6 @@ class StationAndObservationApiTestCase(TestCase):
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0]["station_code"], "48838")
 
-        # Missing lat/lon returns 400
         res_err = self.client.get("/stations/spatial_query/")
         self.assertEqual(res_err.status_code, 400)
 
@@ -310,35 +256,60 @@ class StationAndObservationApiTestCase(TestCase):
         res_monthly = self.client.get(f"/stations/{self.station1.id}/monthly-summary/")
         self.assertEqual(res_monthly.status_code, 200)
         self.assertEqual(res_monthly.json()["station_id"], self.station1.id)
-        self.assertIn("results", res_monthly.json())
+        results = res_monthly.json()["results"]
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["total_records"], 2)
+        self.assertEqual(results[0]["wind_speed_max"], 18.0)
 
         res_yearly = self.client.get(f"/stations/{self.station1.id}/yearly-summary/")
         self.assertEqual(res_yearly.status_code, 200)
         self.assertEqual(res_yearly.json()["station_id"], self.station1.id)
-        self.assertIn("results", res_yearly.json())
+        self.assertEqual(len(res_yearly.json()["results"]), 1)
 
-    def test_observation_viewset_and_filtering(self):
+    def test_summary_rejects_invalid_date(self):
+        res = self.client.get(f"/stations/{self.station1.id}/monthly-summary/?start_date=abc")
+        self.assertEqual(res.status_code, 400)
+
+    def test_observation_list_and_filtering(self):
         res = self.client.get("/observations/")
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["count"], 3)
 
-        # Filter by station
         res_station = self.client.get(f"/observations/?station={self.station1.id}")
         self.assertEqual(res_station.status_code, 200)
-        self.assertEqual(res_station.json()["count"], 2)
+        data = res_station.json()
+        self.assertEqual(data["count"], 2)
+        # Mới nhất xếp trước
+        self.assertEqual([r["wind_speed"] for r in data["results"]], [18.0, 12.5])
+        self.assertEqual(data["results"][0]["station"], self.station1.id)
+        self.assertEqual(data["results"][0]["station_code"], "48838")
+
+    def test_observation_list_time_filter_and_pagination(self):
+        res = self.client.get(f"/observations/?station={self.station1.id}&start_time=2026-01-10T08:30:00")
+        self.assertEqual(res.json()["count"], 1)
+
+        res_page = self.client.get(f"/observations/?station={self.station1.id}&page_size=1&page=2")
+        self.assertEqual(res_page.status_code, 200)
+        page = res_page.json()
+        self.assertEqual(page["count"], 2)
+        self.assertEqual(len(page["results"]), 1)
+        self.assertEqual(page["results"][0]["wind_speed"], 12.5)
+
+    def test_observation_list_unknown_station_is_empty(self):
+        res = self.client.get("/observations/?station=999999")
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["count"], 0)
+
+        res_bad = self.client.get("/observations/?start_time=abc")
+        self.assertEqual(res_bad.status_code, 400)
 
 
 @override_settings(ROOT_URLCONF="wind_stations.urls")
-class StatisticsViewSetTestCase(TestCase):
+class StatisticsViewSetTestCase(LakeTestMixin, TestCase):
     def setUp(self):
+        super().setUp()
         self.client = APIClient()
-        self.dataset = Dataset.objects.create(
-            code="SYNOP_STAT",
-            name="Synoptic Stations",
-            category="STATION",
-        )
         self.station1 = Station.objects.create(
-            dataset=self.dataset,
             station_code="48838",
             name="Bach Long Vi",
             geom=Point(107.72, 20.13),
@@ -346,86 +317,137 @@ class StatisticsViewSetTestCase(TestCase):
             is_active=True,
         )
         self.station2 = Station.objects.create(
-            dataset=self.dataset,
             station_code="48855",
             name="Co To",
             geom=Point(107.75, 20.98),
             station_type="SYNOP",
             is_active=True,
         )
+        self.empty_station = Station.objects.create(
+            station_code="NO_DATA",
+            name="Tram Chua Co So Lieu",
+            geom=Point(106.5, 20.5),
+            station_type="SYNOP",
+            is_active=True,
+        )
 
-        now = timezone.now()
-        Observation.objects.create(
-            station=self.station1,
-            obs_time=now - datetime.timedelta(hours=2),
-            wind_speed=12.5,
-            wind_dir=45.0,
-            temp_2m=25.0,
-            pressure=1012.0,
-            rain_24h=5.0,
-        )
-        Observation.objects.create(
-            station=self.station1,
-            obs_time=now - datetime.timedelta(hours=1),
-            wind_speed=18.0,
-            wind_dir=90.0,
-            temp_2m=26.0,
-            pressure=1010.0,
-            rain_24h=10.0,
-        )
-        Observation.objects.create(
-            station=self.station2,
-            obs_time=now - datetime.timedelta(hours=1),
-            wind_speed=8.0,
-            wind_dir=180.0,
-            temp_2m=27.0,
-            pressure=1011.0,
-            rain_24h=0.0,
-        )
+        self.write_observations([
+            {"station_code": "48838", "obs_time": "2026-01-10 08:00:00", "wind_speed": 12.5, "wind_dir": 45.0,
+             "temp_2m": 25.0, "pressure": 1012.0, "rain_24h": 5.0},
+            {"station_code": "48838", "obs_time": "2026-01-10 09:00:00", "wind_speed": 18.0, "wind_dir": 90.0,
+             "temp_2m": 26.0, "pressure": 1010.0, "rain_24h": 10.0},
+            {"station_code": "48855", "obs_time": "2026-02-10 09:00:00", "wind_speed": 8.0, "wind_dir": 180.0,
+             "temp_2m": 27.0, "pressure": 1011.0, "rain_24h": 0.0},
+            # Mã trạm không có trong danh sách trạm nên không được tính
+            {"station_code": "KHONG_CO_TRONG_DANH_SACH", "obs_time": "2026-01-10 09:00:00", "wind_speed": 99.0,
+             "wind_dir": 10.0, "temp_2m": 40.0, "pressure": 900.0, "rain_24h": 500.0},
+        ])
 
     def test_overview_endpoint(self):
         res = self.client.get("/statistics/overview/")
         self.assertEqual(res.status_code, 200)
         data = res.json()
-        self.assertEqual(data["total_stations"], 2)
+        self.assertEqual(data["total_stations"], 3)
         self.assertEqual(data["total_observations"], 3)
-        self.assertIn("max_wind_recorded", data)
+        self.assertEqual(data["date_range"]["min_date"], "2026-01-10T08:00:00")
+        self.assertEqual(data["date_range"]["max_date"], "2026-02-10T09:00:00")
         self.assertEqual(data["max_wind_recorded"]["wind_speed"], 18.0)
+        self.assertEqual(data["max_wind_recorded"]["station_id"], self.station1.id)
         self.assertEqual(data["max_wind_recorded"]["station_name"], "Bach Long Vi")
+
+    def test_overview_with_date_range(self):
+        res = self.client.get(
+            "/statistics/overview/?start_date=2026-02-01T00:00:00Z&end_date=2026-02-28T23:59:59Z"
+        )
+        data = res.json()
+        self.assertEqual(data["total_observations"], 1)
+        self.assertEqual(data["max_wind_recorded"]["station_name"], "Co To")
+
+    def test_overview_without_any_data(self):
+        res = self.client.get("/statistics/overview/?start_date=2030-01-01")
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertEqual(data["total_observations"], 0)
+        self.assertIsNone(data["max_wind_recorded"])
+        self.assertIsNone(data["date_range"]["min_date"])
 
     def test_rankings_endpoint(self):
         res = self.client.get("/statistics/rankings/?metric=wind_speed_max&limit=5")
         self.assertEqual(res.status_code, 200)
         data = res.json()
         self.assertEqual(len(data["rankings"]), 2)
+        self.assertEqual(data["rankings"][0]["rank"], 1)
         self.assertEqual(data["rankings"][0]["station_id"], self.station1.id)
+        self.assertEqual(data["rankings"][0]["station_name"], "Bach Long Vi")
         self.assertEqual(data["rankings"][0]["value"], 18.0)
+
+    def test_rankings_ascending_metric_and_limit(self):
+        res = self.client.get("/statistics/rankings/?metric=temp_min&limit=1")
+        rankings = res.json()["rankings"]
+        self.assertEqual(len(rankings), 1)
+        self.assertEqual(rankings[0]["station_code"], "48838")
+        self.assertEqual(rankings[0]["value"], 25.0)
+
+        res_bad = self.client.get("/statistics/rankings/?limit=abc")
+        self.assertEqual(res_bad.status_code, 400)
 
     def test_multi_station_compare_endpoint(self):
         res = self.client.get(
-            f"/statistics/multi-station-compare/?station_ids={self.station1.id},{self.station2.id}&metric=wind_speed&interval=day"
+            f"/statistics/multi-station-compare/?station_ids={self.station1.id},{self.station2.id}"
+            "&metric=wind_speed&interval=day"
         )
         self.assertEqual(res.status_code, 200)
         data = res.json()
         self.assertEqual(len(data["series"]), 2)
-        self.assertIn("timestamps", data)
+        self.assertEqual(data["timestamps"], ["2026-01-10", "2026-02-10"])
+        by_id = {s["station_id"]: s["values"] for s in data["series"]}
+        self.assertEqual(by_id[self.station1.id], [15.25, None])
+        self.assertEqual(by_id[self.station2.id], [None, 8.0])
+
+    def test_multi_station_compare_monthly(self):
+        res = self.client.get(f"/statistics/multi-station-compare/?station_ids={self.station1.id}&metric=temp_2m")
+        data = res.json()
+        self.assertEqual(data["timestamps"], ["2026-01"])
+        self.assertEqual(data["series"][0]["values"], [25.5])
 
     def test_wind_rose_endpoint(self):
         res = self.client.get(f"/statistics/wind-rose/?station_id={self.station1.id}")
         self.assertEqual(res.status_code, 200)
         data = res.json()
+        self.assertEqual(data["total_records"], 2)
         self.assertEqual(len(data["directions"]), 16)
         self.assertEqual(len(data["speed_bins"]), 6)
         self.assertIn("distribution", data)
+
+    def test_wind_rose_all_stations_ignores_unknown_codes(self):
+        res = self.client.get("/statistics/wind-rose/")
+        self.assertEqual(res.json()["total_records"], 3)
 
     def test_export_csv_endpoint(self):
         res = self.client.get("/statistics/export-csv/")
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res["Content-Type"], "text/csv")
         content = res.content.decode("utf-8")
-        self.assertIn("Bach Long Vi", content)
-        self.assertIn("Co To", content)
         self.assertIn("Wind Speed Avg (m/s)", content)
+
+        rows = {r[2]: r for r in csv.reader(content.splitlines())}
+        self.assertEqual(rows["Bach Long Vi"][4], "18.0")
+        self.assertEqual(rows["Bach Long Vi"][9], "2")
+        self.assertEqual(rows["Co To"][9], "1")
+        # Trạm chưa có số liệu vẫn có dòng, các giá trị bằng 0
+        self.assertEqual(rows["Tram Chua Co So Lieu"][9], "0")
+
+    def test_statistics_with_empty_lake(self):
+        from wind_stations.services.duckdb_storage_service import delete_partition
+
+        for code in ("48838", "48855", "KHONG_CO_TRONG_DANH_SACH"):
+            delete_partition(code, 2026)
+
+        self.assertEqual(self.client.get("/statistics/overview/").json()["total_observations"], 0)
+        self.assertEqual(self.client.get("/statistics/rankings/").json()["rankings"], [])
+        self.assertEqual(self.client.get("/statistics/wind-rose/").json()["total_records"], 0)
+        self.assertEqual(self.client.get("/statistics/multi-station-compare/").json()["series"], [])
+        self.assertEqual(self.client.get("/statistics/export-csv/").status_code, 200)
 
     def test_province_wfs_fallback_endpoint(self):
         res = self.client.get("/ows")
@@ -434,8 +456,9 @@ class StatisticsViewSetTestCase(TestCase):
         self.assertEqual(data["type"], "FeatureCollection")
 
 
-class DataLakeTestCase(TestCase):
+class DataLakeTestCase(LakeTestMixin, TestCase):
     def setUp(self):
+        super().setUp()
         from django.contrib.auth import get_user_model
         User = get_user_model()
         self.admin_user = User.objects.create_superuser(
@@ -581,3 +604,41 @@ class DataLakeTestCase(TestCase):
         res_old = self.client.post("/wind/api/v1/observations/import-file/", {"file": upload2}, format="multipart")
         self.assertIn(res_old.status_code, (404, 405))
 
+
+
+class LakeStationCodeTestCase(LakeTestMixin, TestCase):
+    def test_ingest_sanitizes_station_code_like_station_serializer(self):
+        from wind_stations.services.duckdb_storage_service import get_storage_root
+
+        self.write_observations([
+            {"station_code": "48/10", "obs_time": "2026-03-01 07:00:00", "wind_speed": 4.0, "wind_dir": 90.0},
+            {"station_code": "AB 01", "obs_time": "2026-03-01 07:00:00", "wind_speed": 2.0, "wind_dir": 90.0},
+        ])
+        folders = sorted(p.name for p in get_storage_root().iterdir())
+        self.assertEqual(folders, ["48_10", "AB_01"])
+        self.assertEqual(lake.get_wind_rose(["48_10"])["total_records"], 1)
+
+    def test_station_code_comes_from_folder_not_file_content(self):
+        """Tệp nạp trước đây có thể ghi mã chưa chuẩn hóa (48/10) trong thư mục 48_10."""
+        import pandas as pd
+        from wind_stations.services.duckdb_storage_service import get_storage_root
+
+        folder = get_storage_root() / "48_10"
+        folder.mkdir(parents=True)
+        pd.DataFrame({
+            "station_code": ["48/10", "48/10"],
+            "obs_time": pd.to_datetime(["2020-01-01 07:00:00", "2020-01-01 08:00:00"]),
+            "wind_speed": [3.0, 5.0],
+            "wind_dir": [10.0, 20.0],
+            "temp_2m": [None, None],
+        }).to_parquet(folder / "2020.parquet", index=False)
+
+        overview = lake.get_overview(["48_10"])
+        self.assertEqual(overview["total_observations"], 2)
+        self.assertEqual(overview["max_wind"]["station_code"], "48_10")
+        self.assertEqual(lake.get_overview(["48/10"])["total_observations"], 0)
+
+        rows = lake.ObservationRows(["48_10"], {"48_10": 7})
+        self.assertEqual(rows.count(), 2)
+        self.assertEqual(rows[0:1][0]["station"], 7)
+        self.assertEqual(lake.get_station_aggregates(["48_10"])["48_10"]["cnt"], 2)

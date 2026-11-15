@@ -3,28 +3,25 @@ import io
 import re
 from django.contrib.gis.geos import Point
 from django.contrib.gis.measure import D
-from django.db.models import Avg, Count, Max, Min, Q
-from django.db.models.functions import TruncDay, TruncMonth
+from django.db.models import Count, Q
 from django.http import FileResponse, HttpResponse
 from django_filters import rest_framework as filters
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_gis.filters import InBBoxFilter
 
 from wind_core.utils import IsAdminUserOrReadOnly, StandardResultsSetPagination
-from .models import Observation, Station
+from .models import Station
 from .serializers import (
-    ObservationSerializer,
     StationGeoSerializer,
     StationSerializer,
 )
+from .services import observation_lake_service as lake
 from .services.province_service import get_province_geometry, get_provinces_wfs_data
-from .services.station_service import (
-    calculate_wind_rose_data,
-    get_station_summary_data,
-)
+from .services.station_service import get_station_summary_data
 from .services.duckdb_storage_service import (
     get_data_lake_overview,
     list_data_lake_partitions,
@@ -35,6 +32,14 @@ from .services.duckdb_storage_service import (
     calculate_wind_rose_from_parquet,
     execute_safe_duckdb_query,
 )
+
+
+def _time_range(params, start_key="start_date", end_key="end_date"):
+    """Đọc khoảng thời gian từ query params, trả về lỗi 400 nếu định dạng không hợp lệ."""
+    try:
+        return lake.parse_time_filter(params.get(start_key)), lake.parse_time_filter(params.get(end_key))
+    except ValueError as exc:
+        raise ValidationError({"detail": str(exc)})
 
 
 class StationViewSet(viewsets.ModelViewSet):
@@ -122,137 +127,106 @@ class StationViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["get"], url_path="monthly-summary")
     def monthly_summary(self, request, pk=None):
         station = self.get_object()
-        start_date = request.query_params.get("start_date")
-        end_date = request.query_params.get("end_date")
+        start_date, end_date = _time_range(request.query_params)
         data = get_station_summary_data(station, start_date, end_date, "monthly")
         return Response(data)
 
     @action(detail=True, methods=["get"], url_path="yearly-summary")
     def yearly_summary(self, request, pk=None):
         station = self.get_object()
-        start_date = request.query_params.get("start_date")
-        end_date = request.query_params.get("end_date")
+        start_date, end_date = _time_range(request.query_params)
         data = get_station_summary_data(station, start_date, end_date, "yearly")
         return Response(data)
 
 
-class ObservationFilter(filters.FilterSet):
-    start_time = filters.DateTimeFilter(field_name="obs_time", lookup_expr="gte")
-    end_time = filters.DateTimeFilter(field_name="obs_time", lookup_expr="lte")
-
-    class Meta:
-        model = Observation
-        fields = ["station", "start_time", "end_time"]
-
-
-class ObservationViewSet(viewsets.ReadOnlyModelViewSet):
+class ObservationViewSet(viewsets.ViewSet):
     """
-    API ViewSet cho dữ liệu quan trắc khí tượng gió.
+    API danh sách số liệu quan trắc khí tượng gió, đọc từ kho dữ liệu quan trắc.
+    Hỗ trợ lọc theo station (id trạm), start_time, end_time và phân trang.
     """
-    queryset = (
-        Observation.objects.select_related("station")
-        .all()
-        .order_by("-obs_time")
-    )
-    serializer_class = ObservationSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
-    pagination_class = StandardResultsSetPagination
-    filter_backends = [filters.DjangoFilterBackend]
-    filterset_class = ObservationFilter
 
+    def list(self, request):
+        code_to_id = lake.get_station_code_map()
+        station_param = request.query_params.get("station")
+        if station_param not in (None, ""):
+            id_to_code = {station_id: code for code, station_id in code_to_id.items()}
+            code = id_to_code.get(int(station_param)) if str(station_param).isdigit() else None
+            station_codes = [code] if code else []
+        else:
+            station_codes = list(code_to_id.keys())
+
+        start_time, end_time = _time_range(request.query_params, "start_time", "end_time")
+        rows = lake.ObservationRows(station_codes, code_to_id, start_time, end_time, descending=True)
+
+        paginator = StandardResultsSetPagination()
+        page = paginator.paginate_queryset(rows, request, view=self)
+        return paginator.get_paginated_response(page)
 
 
 class StatisticsViewSet(viewsets.ViewSet):
     """
     API ViewSet cho Trung Tâm Thống Kê & Phân Tích Dữ Liệu Khí Tượng Gió Chuyên Sâu.
+    Số liệu được đọc từ kho dữ liệu quan trắc, chỉ tính các trạm có trong danh sách trạm.
     """
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
     @action(detail=False, methods=["get"])
     def overview(self, request):
         qs_stations = Station.objects.filter(is_active=True)
-        qs_obs = Observation.objects.all()
+        start_date, end_date = _time_range(request.query_params)
 
-        start_date = request.query_params.get("start_date")
-        end_date = request.query_params.get("end_date")
-        if start_date:
-            qs_obs = qs_obs.filter(obs_time__gte=start_date)
-        if end_date:
-            qs_obs = qs_obs.filter(obs_time__lte=end_date)
+        code_to_id = lake.get_station_code_map()
+        summary = lake.get_overview(list(code_to_id.keys()), start_date, end_date)
 
         total_stations = qs_stations.count()
-        total_obs = qs_obs.count()
-        time_bounds = qs_obs.aggregate(min_date=Min("obs_time"), max_date=Max("obs_time"))
-
         types_count = list(
             qs_stations.values("station_type")
             .annotate(count=Count("id"))
             .order_by("-count")
         )
 
-        max_wind_obs = (
-            qs_obs.filter(wind_speed__isnull=False)
-            .select_related("station")
-            .order_by("-wind_speed")
-            .first()
-        )
         max_wind_info = None
-        if max_wind_obs:
+        top = summary["max_wind"]
+        if top:
+            station = Station.objects.filter(station_code=top["station_code"]).first()
             max_wind_info = {
-                "wind_speed": float(max_wind_obs.wind_speed),
-                "station_id": max_wind_obs.station_id,
-                "station_name": max_wind_obs.station.name if max_wind_obs.station else "",
-                "obs_time": max_wind_obs.obs_time.isoformat() if max_wind_obs.obs_time else ""
+                "wind_speed": top["wind_speed"],
+                "station_id": code_to_id.get(top["station_code"]),
+                "station_name": station.name if station else "",
+                "obs_time": top["obs_time"] or "",
             }
 
         return Response({
             "total_stations": total_stations,
             "active_stations": total_stations,
-            "total_observations": total_obs,
-            "date_range": time_bounds,
+            "total_observations": summary["total_observations"],
+            "date_range": {"min_date": summary["min_date"], "max_date": summary["max_date"]},
             "stations_by_type": types_count,
-            "max_wind_recorded": max_wind_info
+            "max_wind_recorded": max_wind_info,
         })
 
     @action(detail=False, methods=["get"])
     def rankings(self, request):
         metric = request.query_params.get("metric", "wind_speed_max")
-        limit = int(request.query_params.get("limit", 10))
-        start_date = request.query_params.get("start_date")
-        end_date = request.query_params.get("end_date")
+        try:
+            limit = int(request.query_params.get("limit", 10))
+        except (TypeError, ValueError):
+            raise ValidationError({"detail": "Giá trị limit không hợp lệ."})
+        start_date, end_date = _time_range(request.query_params)
 
-        qs = Observation.objects.all()
-        if start_date:
-            qs = qs.filter(obs_time__gte=start_date)
-        if end_date:
-            qs = qs.filter(obs_time__lte=end_date)
-
-        field_map = {
-            "wind_speed_max": ("wind_speed", Max),
-            "wind_speed_avg": ("wind_speed", Avg),
-            "temp_max": ("temp_2m", Max),
-            "temp_min": ("temp_2m", Min),
-            "rain_24h_max": ("rain_24h", Max),
-            "pressure_min": ("pressure", Min),
-        }
-        field_name, agg_func = field_map.get(metric, ("wind_speed", Max))
-        is_ascending = metric in ["temp_min", "pressure_min"]
-
-        aggregated = (
-            qs.filter(**{f"{field_name}__isnull": False})
-            .values("station_id", "station__name", "station__station_code")
-            .annotate(val=agg_func(field_name))
-            .order_by("val" if is_ascending else "-val")[:limit]
-        )
+        stations = {s.station_code: s for s in Station.objects.all()}
+        ranked = lake.get_rankings(list(stations.keys()), metric, limit, start_date, end_date)
 
         rankings = []
-        for idx, row in enumerate(aggregated, 1):
+        for idx, row in enumerate(ranked, 1):
+            station = stations[row["station_code"]]
             rankings.append({
                 "rank": idx,
-                "station_id": row["station_id"],
-                "station_code": row["station__station_code"],
-                "station_name": row["station__name"],
-                "value": round(float(row["val"]), 2) if row["val"] is not None else None
+                "station_id": station.id,
+                "station_code": station.station_code,
+                "station_name": station.name,
+                "value": row["value"],
             })
 
         return Response({"metric": metric, "rankings": rankings})
@@ -269,24 +243,14 @@ class StatisticsViewSet(viewsets.ViewSet):
         if metric not in allowed_metrics:
             metric = "wind_speed"
         interval = request.query_params.get("interval", "month")
-        start_date = request.query_params.get("start_date")
-        end_date = request.query_params.get("end_date")
+        start_date, end_date = _time_range(request.query_params)
 
-        trunc_func = TruncDay if interval == "day" else TruncMonth
-        qs = Observation.objects.all()
+        stations_qs = Station.objects.all()
         if station_ids:
-            qs = qs.filter(station_id__in=station_ids)
-        if start_date:
-            qs = qs.filter(obs_time__gte=start_date)
-        if end_date:
-            qs = qs.filter(obs_time__lte=end_date)
+            stations_qs = stations_qs.filter(id__in=station_ids)
+        stations = {s.station_code: s for s in stations_qs}
 
-        raw_data = (
-            qs.annotate(period=trunc_func("obs_time"))
-            .values("period", "station_id", "station__name")
-            .annotate(avg_val=Avg(metric))
-            .order_by("period")
-        )
+        raw_data = lake.get_period_averages(list(stations.keys()), metric, interval, start_date, end_date)
 
         timestamps_set = set()
         station_map = {}
@@ -295,18 +259,19 @@ class StatisticsViewSet(viewsets.ViewSet):
                 continue
             p_str = row["period"].strftime("%Y-%m-%d") if interval == "day" else row["period"].strftime("%Y-%m")
             timestamps_set.add(p_str)
-            s_id = row["station_id"]
-            if s_id not in station_map:
-                station_map[s_id] = {
-                    "station_id": s_id,
-                    "station_name": row["station__name"] or f"Trạm {s_id}",
+            station = stations[row["station_code"]]
+            if station.id not in station_map:
+                station_map[station.id] = {
+                    "station_id": station.id,
+                    "station_name": station.name or f"Trạm {station.id}",
                     "data": {}
                 }
-            station_map[s_id]["data"][p_str] = round(float(row["avg_val"]), 2) if row["avg_val"] is not None else None
+            avg_val = row["avg_val"]
+            station_map[station.id]["data"][p_str] = round(float(avg_val), 2) if avg_val is not None else None
 
-        sorted_timestamps = sorted(list(timestamps_set))
+        sorted_timestamps = sorted(timestamps_set)
         series = []
-        for s_id, s_info in station_map.items():
+        for s_info in station_map.values():
             series.append({
                 "station_id": s_info["station_id"],
                 "station_name": s_info["station_name"],
@@ -323,19 +288,14 @@ class StatisticsViewSet(viewsets.ViewSet):
     @action(detail=False, methods=["get"], url_path="wind-rose")
     def wind_rose(self, request):
         station_id = request.query_params.get("station_id")
-        start_date = request.query_params.get("start_date")
-        end_date = request.query_params.get("end_date")
+        start_date, end_date = _time_range(request.query_params)
 
-        qs = Observation.objects.filter(wind_speed__isnull=False, wind_dir__isnull=False)
+        stations_qs = Station.objects.all()
         if station_id and str(station_id).isdigit():
-            qs = qs.filter(station_id=int(station_id))
-        if start_date:
-            qs = qs.filter(obs_time__gte=start_date)
-        if end_date:
-            qs = qs.filter(obs_time__lte=end_date)
+            stations_qs = stations_qs.filter(id=int(station_id))
+        station_codes = list(stations_qs.values_list("station_code", flat=True))
 
-        data = calculate_wind_rose_data(qs)
-        return Response(data)
+        return Response(lake.get_wind_rose(station_codes, start_date, end_date))
 
     @action(detail=False, methods=["get"], url_path="export-csv")
     def export_csv(self, request):
@@ -349,19 +309,15 @@ class StatisticsViewSet(viewsets.ViewSet):
             "Pressure Avg (hPa)", "Total Records"
         ])
 
-        qs = Station.objects.filter(is_active=True).order_by("id")
-        for st in qs:
-            obs = Observation.objects.filter(station=st)
-            agg = obs.aggregate(
-                w_avg=Avg("wind_speed"), w_max=Max("wind_speed"),
-                t_avg=Avg("temp_2m"), t_max=Max("temp_2m"), t_min=Min("temp_2m"),
-                p_avg=Avg("pressure"), count=Count("id")
-            )
+        stations = list(Station.objects.filter(is_active=True).order_by("id"))
+        aggregates = lake.get_station_aggregates([st.station_code for st in stations])
+        for st in stations:
+            agg = aggregates.get(st.station_code, {})
             writer.writerow([
                 st.id, st.station_code, st.name,
-                round(agg["w_avg"] or 0, 2), round(agg["w_max"] or 0, 2),
-                round(agg["t_avg"] or 0, 2), round(agg["t_max"] or 0, 2), round(agg["t_min"] or 0, 2),
-                round(agg["p_avg"] or 0, 2), agg["count"]
+                round(agg.get("w_avg") or 0, 2), round(agg.get("w_max") or 0, 2),
+                round(agg.get("t_avg") or 0, 2), round(agg.get("t_max") or 0, 2), round(agg.get("t_min") or 0, 2),
+                round(agg.get("p_avg") or 0, 2), int(agg.get("cnt") or 0)
             ])
 
         return response
