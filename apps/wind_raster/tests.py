@@ -1,16 +1,19 @@
 import os
 import tempfile
+import zipfile
 from datetime import datetime, timezone as dt_timezone
 
 import numpy as np
 import pandas as pd
 import xarray as xr
+from django.contrib.auth import get_user_model
 from django.contrib.gis.geos import Polygon
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import SimpleTestCase, TestCase, override_settings
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from wind_core.models import Dataset, DatasetVariable
+from wind_core.models import Dataset, DatasetVariable, IngestionLog
 from wind_raster.models import RasterGranuleIndex
 from wind_raster.serializers import (
     RasterGranuleIndexGeoSerializer,
@@ -20,7 +23,7 @@ from wind_raster.services.netcdf_service import (
     calculate_wind_speed_direction,
     get_netcdf_data,
 )
-from wind_raster.services.raster_ingest import ingest_netcdf
+from wind_raster.services.raster_ingest import IngestError, ingest_netcdf
 from wind_raster.services.raster_service import _parse_bbox
 from wind_raster.services.time_parsing import parse_time_from_filename
 
@@ -336,3 +339,130 @@ class FilenameTimeTest(SimpleTestCase):
         for name in ("abc.nc", "2021133100.nc", "20210101.nc", "202101010600123.nc", ""):
             with self.subTest(name=name):
                 self.assertIsNone(parse_time_from_filename(name))
+
+
+def _write_grid_file(path, names=("u10m", "v10m", "u100m", "v100m"), value=1.0):
+    """Tạo tệp lưới giống dữ liệu WRF đã cắt: không có trục thời gian, biến không có mô tả."""
+    ds = xr.Dataset(
+        data_vars={n: (("lat", "lon"), np.full((2, 2), value, dtype="float32")) for n in names},
+        coords={"lat": [10.0, 11.0], "lon": [105.0, 106.0]},
+    )
+    ds.to_netcdf(path)
+    ds.close()
+
+
+class IngestWithoutTimeTest(TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        media = override_settings(MEDIA_ROOT=os.path.join(self.tmp.name, "media"))
+        media.enable()
+        self.addCleanup(media.disable)
+        self.dataset = Dataset.objects.create(
+            code="WRF3KM", name="WRF 3km", category="GRIDDED", access_level="PUBLIC"
+        )
+
+    def _path(self, name):
+        return os.path.join(self.tmp.name, name)
+
+    def _grid(self, name, **kwargs):
+        path = self._path(name)
+        _write_grid_file(path, **kwargs)
+        return path
+
+    def _zip(self, zip_name, members):
+        zip_path = self._path(zip_name)
+        with zipfile.ZipFile(zip_path, "w") as archive:
+            for member in members:
+                archive.write(member, arcname=os.path.basename(member))
+        return zip_path
+
+    def test_single_file_takes_time_from_source_name(self):
+        path = self._grid("upload_tmp.nc")
+        result = ingest_netcdf(path, self.dataset, source_name="2021010106.nc")
+        expected = datetime(2021, 1, 1, 6, tzinfo=dt_timezone.utc)
+        self.assertEqual(result.granules, 1)
+        self.assertEqual(result.time_start, expected)
+        self.assertIn("wind_10m", result.variables)
+        self.assertIn("wind_100m", result.variables)
+        wind = DatasetVariable.objects.get(dataset=self.dataset, variable_code="wind_10m")
+        self.assertEqual(wind.components, ["u10m", "v10m"])
+        self.assertTrue(RasterGranuleIndex.objects.filter(dataset=self.dataset, granule_time=expected).exists())
+
+    def test_file_without_time_or_dated_name_fails_with_clear_message(self):
+        path = self._grid("upload_tmp.nc")
+        with self.assertRaisesMessage(IngestError, "Không xác định được thời gian"):
+            ingest_netcdf(path, self.dataset, source_name="abc.nc")
+        self.assertEqual(RasterGranuleIndex.objects.filter(dataset=self.dataset).count(), 0)
+
+    def test_zip_with_many_files_creates_one_granule_per_time(self):
+        members = [self._grid(f"{stamp}.nc") for stamp in ("2021010100", "2021010106", "2021010112")]
+        result = ingest_netcdf(self._zip("year.zip", members), self.dataset, source_name="year.zip")
+        self.assertEqual(result.granules, 3)
+        self.assertEqual(result.time_end, datetime(2021, 1, 1, 12, tzinfo=dt_timezone.utc))
+        self.assertEqual(RasterGranuleIndex.objects.filter(dataset=self.dataset).count(), 3)
+        self.dataset.refresh_from_db()
+        self.assertEqual(self.dataset.time_start, result.time_start)
+        self.assertIn("3 mốc giờ", result.summary())
+
+    def test_zip_with_a_bad_file_writes_nothing(self):
+        members = [self._grid("2021010100.nc"), self._grid("bad.nc")]
+        with self.assertRaises(IngestError) as ctx:
+            ingest_netcdf(self._zip("mixed.zip", members), self.dataset, source_name="mixed.zip")
+        self.assertIn("bad.nc", str(ctx.exception))
+        self.assertEqual(RasterGranuleIndex.objects.filter(dataset=self.dataset).count(), 0)
+
+    def test_files_with_same_time_and_different_variables_are_merged(self):
+        members = [
+            self._grid("2021010100.nc", names=("u10m", "v10m")),
+            self._grid("2021010100_100m.nc", names=("u100m", "v100m")),
+        ]
+        result = ingest_netcdf(self._zip("split.zip", members), self.dataset, source_name="split.zip")
+        self.assertEqual(result.granules, 1)
+        granule = RasterGranuleIndex.objects.get(dataset=self.dataset)
+        with xr.open_dataset(granule.file_location) as merged:
+            self.assertEqual(set(merged.data_vars), {"u10m", "v10m", "u100m", "v100m"})
+
+    def test_files_with_same_time_and_same_variables_are_rejected(self):
+        members = [self._grid("2021010100.nc"), self._grid("2021010100_dup.nc")]
+        with self.assertRaisesMessage(IngestError, "trùng"):
+            ingest_netcdf(self._zip("dup.zip", members), self.dataset, source_name="dup.zip")
+
+
+@override_settings(ROOT_URLCONF="wind_raster.urls")
+class UploadEndpointTest(TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        media = override_settings(MEDIA_ROOT=os.path.join(self.tmp.name, "media"))
+        media.enable()
+        self.addCleanup(media.disable)
+        self.client = APIClient()
+        self.client.force_authenticate(
+            user=get_user_model().objects.create_superuser("root", "root@test.com", "pass12345")
+        )
+        self.dataset = Dataset.objects.create(
+            code="WRF3KM", name="WRF 3km", category="GRIDDED", access_level="PUBLIC"
+        )
+
+    def _upload(self, upload_name):
+        path = os.path.join(self.tmp.name, "source.nc")
+        _write_grid_file(path)
+        with open(path, "rb") as handle:
+            content = handle.read()
+        return self.client.post(
+            "/raster-granules/upload/",
+            {"file": SimpleUploadedFile(upload_name, content), "dataset_id": self.dataset.id},
+            format="multipart",
+        )
+
+    def test_upload_reads_time_from_file_name(self):
+        response = self._upload("2021010106.nc")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Đã nạp 1 mốc giờ", response.json()["message"])
+
+    def test_upload_without_time_returns_clear_error_and_logs_failure(self):
+        response = self._upload("abc.nc")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Không xác định được thời gian", response.json()["error"])
+        self.assertEqual(IngestionLog.objects.get(dataset=self.dataset).status, "FAILED")
