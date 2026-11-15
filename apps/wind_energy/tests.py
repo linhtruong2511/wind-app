@@ -15,7 +15,6 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from wind_core.models import Dataset
 from wind_energy import interpolation
 from wind_energy.models import (
     AnalysisJob,
@@ -40,18 +39,12 @@ User = get_user_model()
 
 class WindEnergyModelTest(TestCase):
     def setUp(self):
-        self.dataset = Dataset.objects.create(
-            code="OFFSHORE_WIND_2026",
-            name="Bộ dữ liệu tiềm năng điện gió 2026",
-            category="GRIDDED",
-        )
         self.farm = WindFarm.objects.create(
             code="WF_VINH_BAC_BO",
             name="Trang trại gió ngoài khơi Vịnh Bắc Bộ",
             location_name="Bắc Vịnh Bắc Bộ",
             status="ASSESSMENT",
             total_capacity_mw=150.75,
-            dataset=self.dataset,
         )
         self.station = Station.objects.create(
             station_code="ST_BACH_LONG_VI",
@@ -68,7 +61,6 @@ class WindEnergyModelTest(TestCase):
             "Trang trại gió ngoài khơi Vịnh Bắc Bộ (WF_VINH_BAC_BO)",
         )
         self.assertEqual(self.farm._meta.db_table, "wind_farms")
-        self.assertEqual(self.farm.dataset, self.dataset)
         self.assertEqual(self.farm.status, "ASSESSMENT")
         self.assertEqual(float(self.farm.total_capacity_mw), 150.75)
 
@@ -163,18 +155,12 @@ class WindEnergyModelTest(TestCase):
 
 class WindEnergySerializerTest(TestCase):
     def setUp(self):
-        self.dataset = Dataset.objects.create(
-            code="OFFSHORE_TEST",
-            name="Offshore Test Dataset",
-            category="GRIDDED",
-        )
         self.farm = WindFarm.objects.create(
             code="WF_NAM_DINH",
             name="Trang trại Nam Định",
             location_name="Nam Vịnh Bắc Bộ",
             status="OPERATING",
             total_capacity_mw=200.0,
-            dataset=self.dataset,
         )
         self.turbine = WindTurbine.objects.create(
             farm=self.farm,
@@ -227,8 +213,6 @@ class WindEnergySerializerTest(TestCase):
         self.assertEqual(data["code"], "WF_NAM_DINH")
         self.assertEqual(data["name"], "Trang trại Nam Định")
         self.assertEqual(data["turbine_count"], 1)
-        self.assertEqual(data["dataset"], self.dataset.id)
-        self.assertEqual(data["dataset_code"], "OFFSHORE_TEST")
 
     def test_wind_farm_detail_serializer(self):
         serializer = WindFarmDetailSerializer(self.farm)

@@ -161,7 +161,6 @@ class WindTurbineGeoSerializer(GeoFeatureModelSerializer):
 
 class WindFarmSerializer(serializers.ModelSerializer):
     turbine_count = serializers.IntegerField(source="turbines.count", read_only=True)
-    dataset_code = serializers.CharField(source="dataset.code", read_only=True)
 
     class Meta:
         model = WindFarm
@@ -173,8 +172,6 @@ class WindFarmSerializer(serializers.ModelSerializer):
             "location_name",
             "status",
             "total_capacity_mw",
-            "dataset",
-            "dataset_code",
             "turbine_count",
             "created_at",
             "updated_at",
