@@ -123,11 +123,14 @@ test.describe('WindHUB Admin: Stations, Data Lake, CSV Import & SQL Analytics (E
         await saveEvidence(page, 'adm_05_analytics_sql.png');
     });
 
-    test('E2E-ADM-05b [KNOWN BUGS]: Unfiltered Data Lake download & top-wind SQL template return HTTP 500', async ({ page }) => {
-        test.fail(true, 'Known bugs in apps/wind_stations/services/duckdb_storage_service.py (missing union_by_name=True on glob & NaN float JSON serialization)');
-
+    test('E2E-ADM-05b: Unfiltered Data Lake download, missing-station 404 & top-wind SQL template work cleanly', async ({ page }) => {
         const exportRes = await page.request.get('/wind/api/v1/datalake/download/?file_format=csv');
-        expect.soft(exportRes.status(), 'Expected unfiltered Data Lake export to succeed instead of 500').toBe(200);
+        expect(exportRes.status(), 'Expected unfiltered Data Lake export to return 200').toBe(200);
+        const csvBody = await exportRes.text();
+        expect(csvBody).toContain('station_code');
+
+        const missingRes = await page.request.get('/wind/api/v1/datalake/download/?station_code=NONEXISTENT_STN&file_format=csv');
+        expect(missingRes.status(), 'Expected station without Parquet files to return 404').toBe(404);
 
         await navigateHash(page, '/admin/stations');
         await page.getByRole('button', { name: /Phân tích và truy vấn/i }).click();

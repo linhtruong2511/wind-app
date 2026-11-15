@@ -86,12 +86,26 @@ class AdminEndpointsTest(TestCase):
                     f"Expected 401/403 for user={user} on {method.upper()} {url}, got {res.status_code}",
                 )
 
-    def test_cds_write_endpoints_reject_anonymous_user(self):
-        # Anonymous users are rejected (401/403). Note: authenticated non-admin enforcement
-        # on CDSCredentialViewSet/CDSDownloadJobViewSet is tracked as a known RBAC finding.
-        self.client.force_authenticate(user=None)
-        res = self.client.post("/wind/api/v1/cds-credentials/", {"name": "C1", "api_key": "k"}, format="json")
-        self.assertIn(res.status_code, (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN))
+    def test_cds_endpoints_reject_non_admin_users(self):
+        for user in (None, self.normal_user):
+            self.client.force_authenticate(user=user)
+            for path in ("/wind/api/v1/cds-credentials/", "/wind/api/v1/cds-jobs/", "/wind/api/v1/cds-runs/"):
+                res_get = self.client.get(path)
+                self.assertIn(
+                    res_get.status_code,
+                    (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN),
+                    f"Expected 401/403 on GET {path} for user={user}, got {res_get.status_code}",
+                )
+            for url, payload in (
+                ("/wind/api/v1/cds-credentials/", {"name": "C1", "api_key": "k"}),
+                ("/wind/api/v1/cds-jobs/", {"name": "J1"}),
+            ):
+                res_post = self.client.post(url, payload, format="json")
+                self.assertIn(
+                    res_post.status_code,
+                    (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN),
+                    f"Expected 401/403 on POST {url} for user={user}, got {res_post.status_code}",
+                )
 
     def test_dataset_variables_and_policies_crud(self):
         self.client.force_authenticate(user=self.admin_user)
@@ -152,17 +166,17 @@ class AdminEndpointsTest(TestCase):
         # Update station (Frontend always sends station_code; partial PATCH without station_code hits serializer bug)
         upd_res = self.client.patch(
             f"/wind/api/v1/stations/{st_id}/",
-            {"station_code": st_code, "name": "Station Lake Updated"},
+            {"name": "Station Lake Updated"},
             format="json",
         )
         self.assertEqual(upd_res.status_code, status.HTTP_200_OK)
         self.assertEqual(upd_res.data["name"], "Station Lake Updated")
 
-        # CSV dry-run and real import into Parquet Data Lake
+        # CSV dry-run and real import into Parquet Data Lake (including missing wind_dir -> NULL/NaN)
         csv_text = (
             "station_code,obs_time,wind_speed,wind_dir,temp_2m,humidity,pressure\n"
             f"{st_code},2025-05-01 00:00:00,7.5,90,28.0,80,1010.0\n"
-            f"{st_code},2025-05-01 06:00:00,9.2,120,30.0,75,1009.0\n"
+            f"{st_code},2025-05-01 06:00:00,9.2,,30.0,75,1009.0\n"
         )
         dry_file = SimpleUploadedFile("obs.csv", csv_text.encode("utf-8"), content_type="text/csv")
         dry_res = self.client.post(
@@ -181,9 +195,37 @@ class AdminEndpointsTest(TestCase):
         )
         self.assertEqual(real_res.status_code, status.HTTP_200_OK)
 
+        # Upsert a second batch onto the same partition and verify no extra priority_1 column appears
+        upsert_csv = (
+            "station_code,obs_time,wind_speed,wind_dir,temp_2m\n"
+            f"{st_code},2025-05-01 12:00:00,10.5,,29.0\n"
+        )
+        upsert_file = SimpleUploadedFile("obs_upsert.csv", upsert_csv.encode("utf-8"), content_type="text/csv")
+        upsert_res = self.client.post(
+            "/wind/api/v1/datalake/import-file/",
+            {"file": upsert_file, "dry_run": "false"},
+            format="multipart",
+        )
+        self.assertEqual(upsert_res.status_code, status.HTTP_200_OK)
+
+        # Simulate a legacy partition with an extra column (schema mismatch) to verify union_by_name=True
+        legacy_dir = os.path.join(self._tmp_media.name, "observations", "LEGACY_SCHEMA_STN")
+        os.makedirs(legacy_dir, exist_ok=True)
+        pd.DataFrame(
+            [
+                {
+                    "station_code": "LEGACY_SCHEMA_STN",
+                    "obs_time": pd.Timestamp("2025-05-01 00:00:00"),
+                    "wind_speed": 5.0,
+                    "wind_dir": 180.0,
+                    "priority_1": 1,
+                }
+            ]
+        ).to_parquet(os.path.join(legacy_dir, "2025.parquet"), index=False)
+
         ov_res = self.client.get("/wind/api/v1/datalake/overview/")
         self.assertEqual(ov_res.status_code, status.HTTP_200_OK)
-        self.assertGreaterEqual(ov_res.data["total_records"], 2)
+        self.assertGreaterEqual(ov_res.data["total_records"], 4)
 
         part_res = self.client.get("/wind/api/v1/datalake/partitions/", {"station_code": st_code, "year": 2025})
         self.assertEqual(part_res.status_code, status.HTTP_200_OK)
@@ -196,6 +238,22 @@ class AdminEndpointsTest(TestCase):
         )
         self.assertEqual(dl_csv.status_code, status.HTTP_200_OK)
         self.assertIn(st_code, dl_csv.content.decode("utf-8"))
+        self.assertNotIn("priority_1", dl_csv.content.decode("utf-8"))
+
+        # Unfiltered export across partitions with mismatched schemas must return 200
+        dl_all_csv = self.client.get(
+            "/wind/api/v1/datalake/download/",
+            {"file_format": "csv"},
+        )
+        self.assertEqual(dl_all_csv.status_code, status.HTTP_200_OK)
+        self.assertIn(st_code, dl_all_csv.content.decode("utf-8"))
+
+        # Filtering a station without any parquet files must return 404 (not 500)
+        dl_missing = self.client.get(
+            "/wind/api/v1/datalake/download/",
+            {"station_code": "NO_PARQUET_STN", "file_format": "csv"},
+        )
+        self.assertEqual(dl_missing.status_code, status.HTTP_404_NOT_FOUND)
 
         dl_pq = self.client.get(
             "/wind/api/v1/datalake/download/",
@@ -209,7 +267,19 @@ class AdminEndpointsTest(TestCase):
             format="json",
         )
         self.assertEqual(rose_res.status_code, status.HTTP_200_OK)
-        self.assertEqual(rose_res.data["total_records"], 2)
+        self.assertEqual(rose_res.data["total_records"], 1)
+
+        # Raw row query with NULL/NaN wind_dir & schema mismatch across partitions must serialize to JSON cleanly
+        top_wind_res = self.client.post(
+            "/wind/api/v1/datalake/query/",
+            {
+                "sql": "SELECT station_code, obs_time, wind_speed, wind_dir, temp_2m FROM observations ORDER BY wind_speed DESC LIMIT 10"
+            },
+            format="json",
+        )
+        self.assertEqual(top_wind_res.status_code, status.HTTP_200_OK, top_wind_res.content)
+        self.assertGreaterEqual(top_wind_res.data["total_rows"], 4)
+        self.assertIsNone(top_wind_res.data["data"][0]["wind_dir"])
 
         sql_res = self.client.post(
             "/wind/api/v1/datalake/query/",
@@ -217,8 +287,14 @@ class AdminEndpointsTest(TestCase):
             format="json",
         )
         self.assertEqual(sql_res.status_code, status.HTTP_200_OK)
-        self.assertEqual(sql_res.data["data"][0]["cnt"], 2)
+        self.assertEqual(sql_res.data["data"][0]["cnt"], 3)
 
+        self.assertEqual(
+            self.client.delete(
+                "/wind/api/v1/datalake/delete-partition/?station_code=LEGACY_SCHEMA_STN&year=2025"
+            ).status_code,
+            status.HTTP_200_OK,
+        )
         del_part = self.client.delete(
             f"/wind/api/v1/datalake/delete-partition/?station_code={st_code}&year=2025"
         )

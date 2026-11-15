@@ -72,8 +72,8 @@ const WindDashboardRoute = ({ history }) => {
                                 <p>Xây dựng bản đồ chuyên đề và trực quan hóa không gian mạng lưới trạm quan trắc.</p>
                             </div>
                             <div>
-                                <Button bsStyle="primary" onClick={() => history.push('/stations/new')}>
-                                    Tạo bản đồ
+                                <Button bsStyle="primary" onClick={() => history.push('/stations')}>
+                                    Mở bản đồ trạm
                                 </Button>
                             </div>
                         </Panel>

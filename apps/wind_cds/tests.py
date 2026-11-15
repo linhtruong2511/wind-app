@@ -317,16 +317,34 @@ class CDSTasksTest(TestCase):
 @override_settings(ROOT_URLCONF="wind_cds.urls")
 class CDSAPITest(TestCase):
     def setUp(self):
-        from wind_cds.models import CDSCredential, CDSDownloadJob
+        from wind_cds.models import CDSCredential
 
         self.client = APIClient()
         self.user = User.objects.create_user(username="api_user", password="password")
-        self.client.force_authenticate(user=self.user)
+        self.admin_user = User.objects.create_superuser(
+            username="cds_admin_api", email="cds_admin@test.com", password="password"
+        )
+        self.client.force_authenticate(user=self.admin_user)
 
         self.dataset = Dataset.objects.create(code="cds_api_ds", name="CDS API Dataset", category="GRIDDED")
         self.credential = CDSCredential.objects.create(name="API Key")
         self.credential.set_key("my-super-secret-key-123456")
         self.credential.save()
+
+    def test_cds_endpoints_require_admin(self):
+        for user in (None, self.user):
+            self.client.force_authenticate(user=user)
+            for path in ("/credentials/", "/jobs/", "/runs/"):
+                res_get = self.client.get(path)
+                self.assertIn(
+                    res_get.status_code,
+                    (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN),
+                )
+            res_post = self.client.post("/credentials/", {"name": "Unauthorized"}, format="json")
+            self.assertIn(
+                res_post.status_code,
+                (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN),
+            )
 
     def test_credential_list_and_create(self):
         # List

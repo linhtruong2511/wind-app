@@ -18,12 +18,17 @@ test.describe('WindHUB Admin: Raster NetCDF Upload & Granule Catalog (E2E-ADM-04
         const tmpCode = `E2E_RASTER_${Date.now()}`;
         const tmpName = `E2E Raster Tmp ${Date.now()}`;
 
-        // Create isolated test dataset via UI
+        // Create isolated test dataset via UI and capture its ID for deterministic cleanup
         await navigateHash(page, '/admin/datasets');
         await page.getByRole('button', { name: /Tạo bộ dữ liệu mới/i }).click();
         await page.getByPlaceholder(/Ví dụ: ERA5_HOURLY/i).fill(tmpCode);
         await page.getByPlaceholder(/Ví dụ: Gió ERA5/i).fill(tmpName);
+        const createPromise = page.waitForResponse(
+            (res) => res.url().includes('/wind/api/v1/datasets/') && res.request().method() === 'POST'
+        );
         await page.getByRole('button', { name: /Lưu bộ dữ liệu/i }).click();
+        const createRes = await createPromise;
+        const createdDataset = await createRes.json();
         await expect(page.locator('table')).toContainText(tmpCode);
 
         try {
@@ -48,13 +53,22 @@ test.describe('WindHUB Admin: Raster NetCDF Upload & Granule Catalog (E2E-ADM-04
             await expect(page.locator('#wind-app-root')).toContainText(/thành công|bản ghi/i);
             await saveEvidence(page, 'adm_04_rasters_uploaded.png');
         } finally {
-            // Cleanup: delete temporary dataset (cascades to RasterGranuleIndex rows)
+            // Cleanup: delete temporary dataset via UI, with API fallback if needed
+            let deleted = false;
             await navigateHash(page, '/admin/datasets');
             const dsRow = page.locator('tr', { hasText: tmpCode });
-            if (await dsRow.isVisible()) {
+            if (await dsRow.waitFor({ state: 'visible', timeout: 5000 }).then(() => true).catch(() => false)) {
                 page.once('dialog', (dialog) => dialog.accept());
                 await dsRow.locator('button[title="Xóa"], button.btn-danger').first().click();
                 await expect(page.locator('table')).not.toContainText(tmpCode);
+                deleted = true;
+            }
+            if (!deleted && createdDataset?.id) {
+                const cookies = await page.context().cookies();
+                const csrf = cookies.find((c) => c.name === 'csrftoken')?.value || '';
+                await page.request.delete(`/wind/api/v1/datasets/${createdDataset.id}/`, {
+                    headers: csrf ? { 'X-CSRFToken': csrf } : {},
+                }).catch(() => {});
             }
         }
     });

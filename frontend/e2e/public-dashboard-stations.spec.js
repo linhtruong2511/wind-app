@@ -32,17 +32,11 @@ test.describe('Public Portal: Dashboard & Stations (E2E-PUB-01, E2E-PUB-02)', ()
             await expect(page).toHaveURL(new RegExp(`${item.expectedHash.replace('#', '#')}$`));
         }
 
-        // Known edge case check: "Tạo bản đồ" button points to /stations/new -> catch-all redirects to /
         await navigateHash(page, '/dashboard');
-        const mapBtn = page.getByRole('button', { name: 'Tạo bản đồ' });
+        const mapBtn = page.getByRole('button', { name: 'Mở bản đồ trạm' });
         await expect(mapBtn).toBeVisible();
         await mapBtn.click();
-        await page.waitForTimeout(300);
-        const currentUrl = page.url();
-        test.info().annotations.push({
-            type: 'finding',
-            description: `"Tạo bản đồ" navigated to ${currentUrl} (App.jsx has no /stations/new route)`,
-        });
+        await expect(page).toHaveURL(/#\/stations$/);
     });
 
     test('E2E-PUB-02: Stations list, filters, OpenLayers map sync & detail navigation', async ({ page }) => {

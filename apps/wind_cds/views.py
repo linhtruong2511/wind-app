@@ -19,7 +19,7 @@ class CDSCredentialViewSet(viewsets.ModelViewSet):
 
     queryset = CDSCredential.objects.all().order_by("-id")
     serializer_class = CDSCredentialSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    permission_classes = [permissions.IsAdminUser]
     filter_backends = [
         django_filters.DjangoFilterBackend,
         drf_filters.SearchFilter,
@@ -45,7 +45,7 @@ class CDSDownloadJobViewSet(viewsets.ModelViewSet):
 
     queryset = CDSDownloadJob.objects.select_related("credential", "dataset").all().order_by("-id")
     serializer_class = CDSDownloadJobSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    permission_classes = [permissions.IsAdminUser]
     filter_backends = [
         django_filters.DjangoFilterBackend,
         drf_filters.SearchFilter,
@@ -118,7 +118,7 @@ class CDSJobRunViewSet(viewsets.ReadOnlyModelViewSet):
 
     queryset = CDSJobRun.objects.select_related("job").all().order_by("-started_at")
     serializer_class = CDSJobRunSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    permission_classes = [permissions.IsAdminUser]
     filter_backends = [
         django_filters.DjangoFilterBackend,
         drf_filters.OrderingFilter,

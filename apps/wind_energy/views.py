@@ -262,7 +262,9 @@ class WindTurbineViewSet(viewsets.ModelViewSet):
     INTERPOLATION_DEFAULT_SIZE = (140, 160)
     INTERPOLATION_MAX_SIZE = 400
     INTERPOLATION_PAD_DEG = 0.15
-    INTERPOLATION_POINT_MAX_KM = 133.0
+    INTERPOLATION_POINT_MAX_KM = (
+        interpolation.DEFAULT_MAX_DISTANCE_KM + interpolation.DEFAULT_FADE_KM
+    )
     INTERPOLATION_CACHE_SECONDS = 60 * 60
 
     @staticmethod

@@ -109,18 +109,19 @@ def ingest_dataframe_to_parquet(df: pd.DataFrame) -> dict:
             con.register("new_batch", sub_df)
 
             if target_file.exists():
-                # Upsert với dữ liệu cũ đã có
+                # Upsert với dữ liệu cũ đã có (dùng UNION ALL BY NAME để tương thích schema cũ)
                 con.execute(f"CREATE OR REPLACE TEMPORARY TABLE existing_data AS SELECT * FROM read_parquet('{target_file.as_posix()}')")
                 merged = con.execute("""
                     SELECT * EXCLUDE (rn, priority) FROM (
-                        SELECT *, 2 as priority, ROW_NUMBER() OVER (PARTITION BY obs_time ORDER BY 1) as rn
+                        SELECT *, ROW_NUMBER() OVER (PARTITION BY obs_time ORDER BY priority DESC) as rn
                         FROM (
                             SELECT *, 2 as priority FROM new_batch
-                            UNION ALL
+                            UNION ALL BY NAME
                             SELECT *, 1 as priority FROM existing_data
                             WHERE obs_time NOT IN (SELECT obs_time FROM new_batch)
                         )
                     )
+                    WHERE rn = 1
                     ORDER BY obs_time ASC
                 """).df()
                 con.execute(f"COPY merged TO '{target_file.as_posix()}' (FORMAT PARQUET, COMPRESSION ZSTD)")
@@ -198,7 +199,7 @@ def get_data_lake_overview() -> dict:
                 count(*) as rec_count,
                 min(obs_time) as min_t,
                 max(obs_time) as max_t
-            FROM read_parquet('{glob_pattern}')
+            FROM read_parquet('{glob_pattern}', union_by_name=True)
         """
         res = con.execute(query).fetchone()
         st_count = res[0] or 0
@@ -334,6 +335,23 @@ def get_partition_file_path(station_code: str, year: int) -> Path:
     return None
 
 
+def _escape_sql_literal(value: str) -> str:
+    return str(value).replace("'", "''")
+
+
+def _resolve_lake_glob(station_code: str = None):
+    """Trả về (glob_pattern, matching_files) giới hạn theo trạm nếu station_code được chỉ định."""
+    storage_root = get_storage_root()
+    if station_code:
+        station_dir = storage_root / str(station_code)
+        matching_files = list(station_dir.glob("*.parquet"))
+        pattern = (station_dir / "*.parquet").as_posix()
+    else:
+        matching_files = list(storage_root.glob("*/*.parquet"))
+        pattern = (storage_root / "*" / "*.parquet").as_posix()
+    return pattern, matching_files
+
+
 def export_lake_data(
     station_code: str = None,
     start_date: str = None,
@@ -344,13 +362,8 @@ def export_lake_data(
     """
     Truy vấn và xuất dữ liệu từ các tệp Parquet ra định dạng CSV hoặc Parquet.
     """
-    storage_root = get_storage_root()
-    if station_code:
-        pattern = (storage_root / station_code / "*.parquet").as_posix()
-    else:
-        pattern = (storage_root / "*" / "*.parquet").as_posix()
-
-    if not list(storage_root.glob("*/*.parquet")):
+    pattern, matching_files = _resolve_lake_glob(station_code)
+    if not matching_files:
         return None
 
     select_cols = "*"
@@ -361,17 +374,17 @@ def export_lake_data(
 
     where_clauses = []
     if station_code:
-        where_clauses.append(f"station_code = '{station_code}'")
+        where_clauses.append(f"station_code = '{_escape_sql_literal(station_code)}'")
     if start_date:
-        where_clauses.append(f"obs_time >= '{start_date}'")
+        where_clauses.append(f"obs_time >= '{_escape_sql_literal(start_date)}'")
     if end_date:
-        where_clauses.append(f"obs_time <= '{end_date}'")
+        where_clauses.append(f"obs_time <= '{_escape_sql_literal(end_date)}'")
 
     where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
 
     query = f"""
         SELECT {select_cols}
-        FROM read_parquet('{pattern}')
+        FROM read_parquet('{_escape_sql_literal(pattern)}', union_by_name=True)
         {where_sql}
         ORDER BY station_code, obs_time
     """
@@ -392,21 +405,20 @@ def calculate_wind_rose_from_parquet(
     """
     Tính toán hoa gió 16 hướng x 6 cấp tốc độ gió siêu tốc trực tiếp từ DuckDB.
     """
-    storage_root = get_storage_root()
-    pattern = (storage_root / (station_code if station_code else "*") / "*.parquet").as_posix()
-
-    if not list(storage_root.glob("*/*.parquet")):
-        return {"total_records": 0, "message": "Kho dữ liệu chưa có tệp Parquet nào."}
+    pattern, matching_files = _resolve_lake_glob(station_code)
+    if not matching_files:
+        return {"total_records": 0, "message": "Chưa có tệp dữ liệu Parquet phù hợp."}
 
     where_clauses = ["wind_speed IS NOT NULL", "wind_dir IS NOT NULL"]
     if station_code:
-        where_clauses.append(f"station_code = '{station_code}'")
+        where_clauses.append(f"station_code = '{_escape_sql_literal(station_code)}'")
     if start_date:
-        where_clauses.append(f"obs_time >= '{start_date}'")
+        where_clauses.append(f"obs_time >= '{_escape_sql_literal(start_date)}'")
     if end_date:
-        where_clauses.append(f"obs_time <= '{end_date}'")
+        where_clauses.append(f"obs_time <= '{_escape_sql_literal(end_date)}'")
 
     where_sql = "WHERE " + " AND ".join(where_clauses)
+    escaped_pattern = _escape_sql_literal(pattern)
 
     con = duckdb.connect()
     try:
@@ -424,7 +436,7 @@ def calculate_wind_rose_from_parquet(
                         WHEN wind_speed < 10.0 THEN 4
                         ELSE 5
                     END AS bin_idx
-                FROM read_parquet('{pattern}')
+                FROM read_parquet('{escaped_pattern}', union_by_name=True)
                 {where_sql}
             )
             SELECT 
@@ -445,7 +457,7 @@ def calculate_wind_rose_from_parquet(
                 quantile_cont(wind_speed, 0.75) as p75,
                 quantile_cont(wind_speed, 0.90) as p90,
                 quantile_cont(wind_speed, 0.99) as p99
-            FROM read_parquet('{pattern}')
+            FROM read_parquet('{escaped_pattern}', union_by_name=True)
             {where_sql}
         """
         ov = con.execute(overall_query).fetchone()
@@ -503,13 +515,14 @@ def execute_safe_duckdb_query(custom_sql: str) -> dict:
     if re.search(disallowed, cleaned, re.IGNORECASE):
         raise ValueError("Chỉ hỗ trợ các truy vấn đọc dữ liệu (SELECT query).")
 
-    storage_root = get_storage_root()
-    glob_pattern = (storage_root / "*" / "*.parquet").as_posix()
+    glob_pattern, matching_files = _resolve_lake_glob()
+    if re.search(r"\bobservations\b", cleaned, re.IGNORECASE) and not matching_files:
+        return {"total_rows": 0, "columns": [], "data": []}
 
-    # Tự động thay thế bảng 'observations' bằng read_parquet(...)
+    # Tự động thay thế bảng 'observations' bằng read_parquet(..., union_by_name=True)
     sql_to_run = re.sub(
         r"\bobservations\b",
-        f"read_parquet('{glob_pattern}')",
+        f"read_parquet('{_escape_sql_literal(glob_pattern)}', union_by_name=True)",
         cleaned,
         flags=re.IGNORECASE
     )
@@ -517,12 +530,21 @@ def execute_safe_duckdb_query(custom_sql: str) -> dict:
     con = duckdb.connect()
     try:
         df = con.execute(sql_to_run).df()
-        # Giới hạn tối đa 500 dòng preview trên trình duyệt để tránh quá tải
-        preview_rows = df.head(500)
+        # Giới hạn tối đa 500 dòng preview trên trình duyệt và chuyển NaN/NaT/Inf về None để JSON hợp lệ
+        preview_rows = df.head(500).copy()
+        preview_rows = preview_rows.replace([float("inf"), float("-inf")], None)
+        preview_rows = preview_rows.astype(object).where(preview_rows.notnull(), None)
+        records = [
+            {
+                key: (None if isinstance(val, float) and not math.isfinite(val) else val)
+                for key, val in row.items()
+            }
+            for row in preview_rows.to_dict(orient="records")
+        ]
         return {
             "total_rows": len(df),
             "columns": list(df.columns),
-            "data": preview_rows.to_dict(orient="records"),
+            "data": records,
         }
     finally:
         con.close()

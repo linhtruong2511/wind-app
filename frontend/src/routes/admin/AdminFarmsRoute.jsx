@@ -224,9 +224,11 @@ const AdminFarmsRoute = () => {
 
   const [showFarmModal, setShowFarmModal] = useState(false);
   const [farmForm, setFarmForm] = useState(EMPTY_FARM_FORM);
+  const [farmModalError, setFarmModalError] = useState("");
 
   const [showTurbineModal, setShowTurbineModal] = useState(false);
   const [turbineForm, setTurbineForm] = useState(EMPTY_TURBINE_FORM);
+  const [turbineModalError, setTurbineModalError] = useState("");
 
   const loadAll = () => {
     setLoading(true);
@@ -306,6 +308,7 @@ const AdminFarmsRoute = () => {
       ? updateFarm(farmForm.id, payload)
       : createFarm(payload);
 
+    setFarmModalError("");
     promise
       .then(() => {
         setFeedback({
@@ -316,9 +319,11 @@ const AdminFarmsRoute = () => {
         loadAll();
       })
       .catch((err) => {
+        const msg = "Không thể lưu: " + errorText(err);
+        setFarmModalError(msg);
         setFeedback({
           type: "danger",
-          message: "Không thể lưu: " + errorText(err),
+          message: msg,
         });
       });
   };
@@ -368,6 +373,7 @@ const AdminFarmsRoute = () => {
     if (windSpeed !== undefined) payload.wind_speed_100m = windSpeed;
     if (factor !== undefined) payload.capacity_factor = factor;
 
+    setTurbineModalError("");
     createTurbine(payload)
       .then(() => {
         setFeedback({
@@ -378,9 +384,11 @@ const AdminFarmsRoute = () => {
         loadAll();
       })
       .catch((err) => {
+        const msg = "Không thể thêm tuabin: " + errorText(err);
+        setTurbineModalError(msg);
         setFeedback({
           type: "danger",
-          message: "Không thể thêm tuabin: " + errorText(err),
+          message: msg,
         });
       });
   };
@@ -557,6 +565,7 @@ const AdminFarmsRoute = () => {
             <button
               onClick={() => {
                 setFarmForm(EMPTY_FARM_FORM);
+                setFarmModalError("");
                 setShowFarmModal(true);
               }}
               className="btn btn-primary"
@@ -608,6 +617,7 @@ const AdminFarmsRoute = () => {
                     point_id: `${Date.now()}`.slice(-6),
                     farm: selectedFarmFilter || farms[0]?.id || "",
                   });
+                  setTurbineModalError("");
                   setShowTurbineModal(true);
                 }}
                 className="btn btn-primary"
@@ -768,6 +778,7 @@ const AdminFarmsRoute = () => {
                               total_capacity_mw: f.total_capacity_mw ?? "",
                               status: f.status,
                             });
+                            setFarmModalError("");
                             setShowFarmModal(true);
                           }}
                           className="btn btn-xs btn-default"
@@ -993,6 +1004,14 @@ const AdminFarmsRoute = () => {
             >
               {farmForm.id ? "Chỉnh sửa trang trại gió" : "Thêm trang trại gió"}
             </h3>
+            {farmModalError && (
+              <div
+                className="alert alert-danger"
+                style={{ borderRadius: "6px", marginBottom: "14px", fontSize: "13px" }}
+              >
+                {farmModalError}
+              </div>
+            )}
             <form onSubmit={handleSaveFarm}>
               <div style={gridStyle}>
                 <div className="form-group">
@@ -1024,7 +1043,7 @@ const AdminFarmsRoute = () => {
               </div>
               <div style={gridStyle}>
                 <div className="form-group">
-                  <label style={labelStyle}>Vùng biển</label>
+                  <label style={labelStyle}>Vùng biển *</label>
                   <input
                     type="text"
                     className="form-control"
@@ -1035,6 +1054,7 @@ const AdminFarmsRoute = () => {
                         location_name: e.target.value,
                       })
                     }
+                    required
                     placeholder="Ví dụ: Bắc Vịnh Bắc Bộ"
                   />
                 </div>
@@ -1119,6 +1139,14 @@ const AdminFarmsRoute = () => {
             >
               Thêm tuabin gió
             </h3>
+            {turbineModalError && (
+              <div
+                className="alert alert-danger"
+                style={{ borderRadius: "6px", marginBottom: "14px", fontSize: "13px" }}
+              >
+                {turbineModalError}
+              </div>
+            )}
             <form onSubmit={handleSaveTurbine}>
               <div style={gridStyle}>
                 <div className="form-group">

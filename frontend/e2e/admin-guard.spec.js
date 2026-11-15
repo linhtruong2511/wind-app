@@ -16,11 +16,19 @@ test.describe('WindHUB Admin: Route Guard & Fullscreen Shell (E2E-ADM-01)', () =
         await expect(page.getByRole('link', { name: /Về trang bản đồ/i })).toBeVisible();
         await expect(page.getByRole('link', { name: /Đăng nhập tài khoản khác/i })).toBeVisible();
 
-        // Backend DRF write protection check
+        // Backend DRF protection checks (stations & CDS admin endpoints)
         const postRes = await page.request.post('/wind/api/v1/stations/', {
             data: { station_code: 'UNAUTH_TEST', name: 'Unauth', geom: 'SRID=4326;POINT(106 10)' },
         });
         expect([401, 403]).toContain(postRes.status());
+
+        const cdsGetRes = await page.request.get('/wind/api/v1/cds-credentials/');
+        expect([401, 403]).toContain(cdsGetRes.status());
+
+        const cdsJobPostRes = await page.request.post('/wind/api/v1/cds-jobs/', {
+            data: { name: 'Unauth CDS Job' },
+        });
+        expect([401, 403]).toContain(cdsJobPostRes.status());
 
         await saveEvidence(page, 'adm_00_guard_403.png');
         monitors.assertClean();

@@ -385,7 +385,7 @@ class WindEnergyViewSetApiTest(TestCase):
     def test_turbine_create_requires_admin(self):
         payload = {
             "farm": self.farm.id,
-            "point_id": "TB_77",
+            "point_id": 77,
             "geom": "SRID=4326;POINT(106.9 19.9)",
             "capacity_mw": 4.0,
             "depth_m": 20.0,
@@ -396,12 +396,37 @@ class WindEnergyViewSetApiTest(TestCase):
         )
         admin = User.objects.create_superuser("admin_wind", "a@example.com", "pw12345!")
         self.client.force_authenticate(admin)
+        bad_payload = {**payload, "point_id": "TB_77"}
+        self.assertEqual(
+            self.client.post("/turbines/", bad_payload, format="json").status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
         response = self.client.post("/turbines/", payload, format="json")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
         self.assertEqual(response.data["point_id"], 77)
         self.assertEqual(response.data["status"], "PROPOSED")
         self.assertEqual(response.data["foundation_type"], "FIXED")
         self.assertAlmostEqual(response.data["longitude"], 106.9)
+
+    def test_turbine_create_keeps_explicit_floating_foundation_with_zero_depth(self):
+        admin = User.objects.create_superuser("admin_found", "f@example.com", "pw12345!")
+        self.client.force_authenticate(admin)
+        response = self.client.post(
+            "/turbines/",
+            {
+                "farm": self.farm.id,
+                "point_id": 88,
+                "geom": "SRID=4326;POINT(106.9 19.9)",
+                "capacity_mw": 5.0,
+                "depth_m": 0,
+                "foundation_type": "FLOATING",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+        self.assertEqual(response.data["foundation_type"], "FLOATING")
+        self.assertEqual(response.data["depth_m"], 0.0)
+        self.assertEqual(self.client.get("/turbines/?foundationType=floating").data["count"], 2)
 
     # ---- Xuất dữ liệu ----
 
@@ -525,6 +550,7 @@ class override_chunk:
         interpolation._CHUNK_ELEMENTS = self.original
 
 
+@override_settings(ROOT_URLCONF="wind_energy.urls")
 class WindTurbineInterpolationApiTest(TestCase):
     def setUp(self):
         cache.clear()
@@ -693,23 +719,3 @@ class LoadWindTurbinesCommandTest(TestCase):
         farm = WindFarm.objects.get(code="VBB_TRUNG")
         self.assertEqual(float(farm.total_capacity_mw), 30.0)
         self.assertEqual(farm.turbines.get().foundation_type, "FLOATING")
-
-    def test_turbine_create_keeps_explicit_floating_foundation_with_zero_depth(self):
-        admin = User.objects.create_superuser("admin_found", "f@example.com", "pw12345!")
-        self.client.force_authenticate(admin)
-        response = self.client.post(
-            "/turbines/",
-            {
-                "farm": self.farm.id,
-                "point_id": 88,
-                "geom": "SRID=4326;POINT(106.9 19.9)",
-                "capacity_mw": 5.0,
-                "depth_m": 0,
-                "foundation_type": "FLOATING",
-            },
-            format="json",
-        )
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
-        self.assertEqual(response.data["foundation_type"], "FLOATING")
-        self.assertEqual(response.data["depth_m"], 0.0)
-        self.assertEqual(self.client.get("/turbines/?foundationType=floating").data["count"], 2)

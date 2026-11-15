@@ -37,10 +37,11 @@ class StationSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         lat = validated_data.pop("lat", None)
         lon = validated_data.pop("lon", None)
-        
+
         code = validated_data.pop("station_code", None)
-        code = code.replace(" ", "_").replace("/","_").strip()
-        validated_data["station_code"] = code
+        if code is not None:
+            code = code.replace(" ", "_").replace("/", "_").strip()
+            validated_data["station_code"] = code
 
         if "geom" not in validated_data and lat is not None and lon is not None:
             validated_data["geom"] = Point(float(lon), float(lat), srid=4326)
@@ -49,11 +50,12 @@ class StationSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         lat = validated_data.pop("lat", None)
         lon = validated_data.pop("lon", None)
-        
+
         code = validated_data.pop("station_code", None)
-        code = code.replace(" ", "_").replace("/","_").strip()
-        validated_data["station_code"] = code
-        
+        if code is not None:
+            code = code.replace(" ", "_").replace("/", "_").strip()
+            validated_data["station_code"] = code
+
         if lat is not None and lon is not None:
             validated_data["geom"] = Point(float(lon), float(lat), srid=4326)
         return super().update(instance, validated_data)
