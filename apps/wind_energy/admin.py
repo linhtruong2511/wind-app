@@ -28,16 +28,18 @@ class WindTurbineAdmin(admin.ModelAdmin):
     list_display = (
         "point_id",
         "farm",
+        "zone",
         "latitude",
         "longitude",
         "wind_speed_100m",
         "sea_depth",
         "predicted_power_mw",
         "capacity_factor",
+        "foundation_type",
         "status",
     )
-    list_filter = ("status", "farm")
-    search_fields = ("point_id", "farm__code", "farm__name")
+    list_filter = ("status", "foundation_type", "zone", "farm")
+    search_fields = ("point_id", "name", "zone", "farm__code", "farm__name")
 
 
 @admin.register(AnalysisJob)

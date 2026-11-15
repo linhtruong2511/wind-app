@@ -9,7 +9,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { Grid, Row, Col, Button } from 'react-bootstrap';
-import { getWindFarms } from '../api/wind';
+import { getWindFarms, getTurbinesExportUrl } from '../api/wind';
 import WindFarmFilterBar from '../components/farms/WindFarmFilterBar';
 import WindFarmList from '../components/farms/WindFarmList';
 import WindFarmMapContainer from '../components/farms/WindFarmMapContainer';
@@ -76,6 +76,10 @@ const WindFarmsRoute = ({ history }) => {
         setSelectedPoint(item);
     };
 
+    const handleExport = (output) => {
+        window.location.href = getTurbinesExportUrl(filters, output);
+    };
+
     const totalPages = Math.ceil(totalCount / pageSize) || 1;
 
     return (
@@ -90,10 +94,16 @@ const WindFarmsRoute = ({ history }) => {
                                 Khảo sát tiềm năng và trang trại gió ngoài khơi Vịnh Bắc Bộ
                             </h3>
                             <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '12px' }}>
-                                Dữ liệu mô hình dự báo công suất tại 1.000 điểm đặt tuabin trên biển, phân tích độ sâu đáy biển và tiềm năng năng lượng gió.
+                                Dữ liệu mô hình dự báo công suất tại các điểm đặt tuabin trên biển, phân tích độ sâu đáy biển và tiềm năng năng lượng gió.
                             </p>
                         </div>
                         <div style={{ display: 'flex', gap: '8px' }}>
+                            <Button bsSize="sm" bsStyle="default" onClick={() => handleExport("csv")} title="Tải danh sách đang lọc dạng CSV">
+                                <i className="fa fa-download" /> Xuất CSV
+                            </Button>
+                            <Button bsSize="sm" bsStyle="default" onClick={() => handleExport("geojson")} title="Tải danh sách đang lọc dạng GeoJSON">
+                                <i className="fa fa-download" /> Xuất GeoJSON
+                            </Button>
                             <Button
                                 bsSize="sm"
                                 bsStyle="default"

@@ -19,14 +19,14 @@ const getPowerBadgeColor = (power) => {
 
 const WindFarmRow = ({ item, isSelected = false, onSelectPoint }) => {
     const pointId = item.point_id ?? item.id;
-    const power = item.predicted_power_mw ?? 0;
-    const cf = item.capacity_factor ?? 0;
-    const depth = item.depth_m ?? 0;
-    const windSpeed = item.wind_speed_100m ?? 0;
-    const windDir = item.wind_direction ?? 0;
-    const lat = item.latitude ?? 0;
-    const lon = item.longitude ?? 0;
-    const isFixed = depth <= 50;
+    const power = Number(item.predicted_power_mw) || 0;
+    const cf = Number(item.capacity_factor) || 0;
+    const depth = Number(item.depth_m) || 0;
+    const windSpeed = Number(item.wind_speed_100m) || 0;
+    const windDir = Number(item.wind_direction) || 0;
+    const lat = Number(item.latitude) || 0;
+    const lon = Number(item.longitude) || 0;
+    const isFixed = item.foundation_type ? item.foundation_type === 'FIXED' : depth <= 50;
 
     return (
         <div

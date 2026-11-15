@@ -2,14 +2,6 @@ from django.contrib.gis.db import models
 
 
 class Station(models.Model):
-    dataset = models.ForeignKey(
-        "wind_core.Dataset",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="stations",
-        verbose_name="Bộ dữ liệu",
-    )
     station_code = models.CharField(max_length=32, verbose_name="Mã trạm")
     name = models.CharField(max_length=255, verbose_name="Tên trạm")
     geom = models.PointField(srid=4326, verbose_name="Tọa độ vị trí")
@@ -23,7 +15,6 @@ class Station(models.Model):
         db_table = "wind_stations"
         verbose_name = "Trạm quan trắc"
         verbose_name_plural = "Danh sách trạm quan trắc"
-        unique_together = ("dataset", "station_code")
 
     def __str__(self):
         return f"{self.name} ({self.station_code})"

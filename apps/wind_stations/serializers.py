@@ -29,7 +29,6 @@ class ObservationSerializer(serializers.ModelSerializer):
 
 
 class StationSerializer(serializers.ModelSerializer):
-    dataset_code = serializers.SerializerMethodField()
     latest_observation = serializers.SerializerMethodField()
     lat = serializers.FloatField(required=False)
     lon = serializers.FloatField(required=False)
@@ -44,8 +43,6 @@ class StationSerializer(serializers.ModelSerializer):
             "elevation",
             "station_type",
             "is_active",
-            "dataset",
-            "dataset_code",
             "geom",
             "lat",
             "lon",
@@ -94,12 +91,9 @@ class StationSerializer(serializers.ModelSerializer):
     def get_lon(self, obj):
         return obj.geom.x if obj.geom else None
 
-    def get_dataset_code(self, obj):
-        return obj.dataset.code if obj.dataset else None
 
 
 class StationGeoSerializer(GeoFeatureModelSerializer):
-    dataset_code = serializers.SerializerMethodField()
     latest_observation = serializers.SerializerMethodField()
 
     class Meta:
@@ -112,12 +106,8 @@ class StationGeoSerializer(GeoFeatureModelSerializer):
             "elevation",
             "station_type",
             "is_active",
-            "dataset_code",
             "latest_observation",
         ]
-
-    def get_dataset_code(self, obj):
-        return obj.dataset.code if obj.dataset else None
 
     def get_latest_observation(self, obj):
         latest = obj.observations.order_by("-obs_time").first()

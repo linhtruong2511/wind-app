@@ -122,17 +122,9 @@ export const deleteStation = (id) => {
     return axios.delete(`${BASE_URL}/stations/${id}/`, authConfig());
 };
 
-export const importObservationsFile = (file, dryRun = false) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('dry_run', dryRun ? 'true' : 'false');
-    return axios.post(`${BASE_URL}/observations/import-file/`, formData, authConfig({ 'Content-Type': 'multipart/form-data' }))
-        .then(res => res.data);
-};
-
 // Wind Farms & Turbines
 export const getAdminFarms = (params = {}) => {
-    return axios.get(`${BASE_URL}/farms/`, { ...authConfig(), params })
+    return axios.get(`${BASE_URL}/farms/`, { ...authConfig(), params: { pageSize: 1000, ...params } })
         .then(res => res.data.results || res.data || []);
 };
 
@@ -152,7 +144,7 @@ export const deleteFarm = (id) => {
 
 export const getAdminTurbines = (params = {}) => {
     return axios.get(`${BASE_URL}/turbines/`, { ...authConfig(), params })
-        .then(res => res.data.results || res.data || []);
+        .then(res => (Array.isArray(res.data) ? { count: res.data.length, results: res.data } : res.data));
 };
 
 export const createTurbine = (data) => {
@@ -236,7 +228,11 @@ export const syncDataLakeFromDb = () => {
 };
 
 export const getDownloadLakeDataUrl = (stationCode, year, format = 'parquet', extraParams = {}) => {
-    const query = new URLSearchParams({ format, ...extraParams });
+    // Không dùng tên "format" vì máy chủ dành riêng tham số này để chọn bộ render, sẽ trả lỗi 404
+    const query = new URLSearchParams({ file_format: format });
+    Object.entries(extraParams).forEach(([key, value]) => {
+        if (value) query.append(key, value);
+    });
     if (stationCode) query.append('station_code', stationCode);
     if (year) query.append('year', year);
     return `${BASE_URL}/datalake/download/?${query.toString()}`;

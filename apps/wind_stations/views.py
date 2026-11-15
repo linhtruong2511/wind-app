@@ -1,4 +1,6 @@
 import csv
+import io
+import re
 from django.contrib.gis.geos import Point
 from django.contrib.gis.measure import D
 from django.db.models import Avg, Count, Max, Min, Q
@@ -45,7 +47,7 @@ class StationViewSet(viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination
     bbox_filter_field = "geom"
     filter_backends = [filters.DjangoFilterBackend, InBBoxFilter]
-    filterset_fields = ["station_type", "dataset__code"]
+    filterset_fields = ["station_type"]
 
     def get_queryset(self):
         user = getattr(self.request, "user", None)
@@ -157,65 +159,6 @@ class ObservationViewSet(viewsets.ReadOnlyModelViewSet):
     pagination_class = StandardResultsSetPagination
     filter_backends = [filters.DjangoFilterBackend]
     filterset_class = ObservationFilter
-
-    @action(detail=False, methods=["post"], url_path="import-file", permission_classes=[permissions.IsAdminUser])
-    def import_file(self, request):
-        uploaded_file = request.FILES.get("file")
-        dry_run = str(request.data.get("dry_run", "false")).lower() in ("true", "1")
-        if not uploaded_file:
-            return Response({"error": "Vui lòng chọn tệp CSV hoặc Excel."}, status=status.HTTP_400_BAD_REQUEST)
-
-        import pandas as pd
-
-        try:
-            if uploaded_file.name.endswith(".csv"):
-                df = pd.read_csv(uploaded_file)
-            else:
-                df = pd.read_excel(uploaded_file)
-        except Exception as e:
-            return Response({"error": f"Không thể đọc tệp: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
-
-        required_cols = ["station_code", "obs_time"]
-        for col in required_cols:
-            if col not in df.columns:
-                return Response({"error": f"Thiếu cột bắt buộc: {col}"}, status=status.HTTP_400_BAD_REQUEST)
-
-        if dry_run:
-            preview = df.head(10).to_dict(orient="records")
-            return Response({"valid": True, "total_rows": len(df), "preview": preview})
-
-        from wind_stations.models import Station, Observation
-
-        station_map = {s.station_code: s for s in Station.objects.all()}
-        created_count = 0
-        obs_to_create = []
-
-        for _, row in df.iterrows():
-            st = station_map.get(str(row["station_code"]).strip())
-            if not st:
-                continue
-            obs_to_create.append(
-                Observation(
-                    station=st,
-                    obs_time=pd.to_datetime(row["obs_time"]).to_pydatetime(),
-                    wind_speed=row.get("wind_speed") if pd.notnull(row.get("wind_speed")) else None,
-                    wind_dir=row.get("wind_dir") if pd.notnull(row.get("wind_dir")) else None,
-                    temp_2m=row.get("temp_2m") if pd.notnull(row.get("temp_2m")) else None,
-                    humidity=row.get("humidity") if pd.notnull(row.get("humidity")) else None,
-                    pressure=row.get("pressure") if pd.notnull(row.get("pressure")) else None,
-                    rain_24h=row.get("rain_24h") if pd.notnull(row.get("rain_24h")) else None,
-                )
-            )
-            if len(obs_to_create) >= 2000:
-                Observation.objects.bulk_create(obs_to_create, ignore_conflicts=True)
-                created_count += len(obs_to_create)
-                obs_to_create = []
-
-        if obs_to_create:
-            Observation.objects.bulk_create(obs_to_create, ignore_conflicts=True)
-            created_count += len(obs_to_create)
-
-        return Response({"message": f"Đã nạp {created_count} bản ghi quan trắc thành công."})
 
 
 
@@ -503,13 +446,22 @@ class DataLakeViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=["get"])
     def download(self, request):
+        # Lưu ý: không dùng tên tham số "format" vì DRF dành riêng tham số này để chọn bộ render
+        # (?format=csv / ?format=parquet sẽ bị trả về 404 "Không tìm thấy." trước khi vào view).
         station_code = request.query_params.get("station_code")
         year = request.query_params.get("year")
-        fmt = request.query_params.get("format", "parquet").lower()
+        fmt = request.query_params.get("file_format", "parquet").lower()
 
-        if fmt == "parquet":
-            if not station_code or not year:
-                return Response({"error": "Vui lòng chỉ định station_code và year để tải tệp Parquet."}, status=status.HTTP_400_BAD_REQUEST)
+        if fmt not in ("parquet", "csv"):
+            return Response({"error": "Định dạng tệp không hợp lệ. Chỉ hỗ trợ parquet hoặc csv."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if station_code and (not re.fullmatch(r"[\w\-.]+", station_code) or station_code in (".", "..")):
+            return Response({"error": "Mã trạm không hợp lệ."}, status=status.HTTP_400_BAD_REQUEST)
+        if year and not year.isdigit():
+            return Response({"error": "Năm không hợp lệ."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Tải nguyên tệp phân vùng khi chỉ định đủ trạm và năm
+        if fmt == "parquet" and station_code and year:
             file_path = get_partition_file_path(station_code, int(year))
             if not file_path or not file_path.exists():
                 return Response({"error": "Tệp phân vùng không tồn tại."}, status=status.HTTP_404_NOT_FOUND)
@@ -522,14 +474,20 @@ class DataLakeViewSet(viewsets.ViewSet):
         cols_param = request.query_params.get("columns")
         cols = [c.strip() for c in cols_param.split(",") if c.strip()] if cols_param else None
 
-        df = export_lake_data(station_code=station_code, start_date=start_date, end_date=end_date, columns=cols, fmt="csv")
+        df = export_lake_data(station_code=station_code, start_date=start_date, end_date=end_date, columns=cols, fmt=fmt)
         if df is None or df.empty:
             return Response({"error": "Không có dữ liệu thỏa mãn điều kiện lọc."}, status=status.HTTP_404_NOT_FOUND)
 
-        csv_content = df.to_csv(index=False)
-        response = HttpResponse(csv_content, content_type="text/csv")
-        fname = f"{station_code or 'all_stations'}_export.csv"
-        response["Content-Disposition"] = f'attachment; filename="{fname}"'
+        fname_base = f"{station_code or 'all_stations'}_export"
+        if fmt == "parquet":
+            buffer = io.BytesIO()
+            df.to_parquet(buffer, index=False)
+            response = HttpResponse(buffer.getvalue(), content_type="application/octet-stream")
+            response["Content-Disposition"] = f'attachment; filename="{fname_base}.parquet"'
+            return response
+
+        response = HttpResponse(df.to_csv(index=False), content_type="text/csv")
+        response["Content-Disposition"] = f'attachment; filename="{fname_base}.csv"'
         return response
 
     @action(detail=False, methods=["delete", "post"], url_path="delete-partition", permission_classes=[permissions.IsAdminUser])

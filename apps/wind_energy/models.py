@@ -25,14 +25,7 @@ class WindFarm(models.Model):
     total_capacity_mw = models.DecimalField(
         max_digits=10, decimal_places=2, null=True, blank=True, verbose_name="Năng lượng dự báo"
     )
-    dataset = models.ForeignKey(
-        "wind_core.Dataset",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="wind_farms",
-        verbose_name="Bộ dữ liệu",
-    )
+
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Ngày tạo")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Ngày cập nhật")
 
@@ -49,6 +42,10 @@ class WindFarm(models.Model):
         return f"{self.name} ({self.code})"
 
 
+# Ngưỡng độ sâu (m) phân biệt móng cố định và móng nổi
+FIXED_FOUNDATION_MAX_DEPTH = 50
+
+
 class WindTurbine(models.Model):
     STATUS_CHOICES = [
         ("PROPOSED", "Đề xuất"),
@@ -56,19 +53,28 @@ class WindTurbine(models.Model):
         ("INSTALLED", "Đã lắp đặt"),
         ("OPERATIONAL", "Đang vận hành"),
     ]
+    FOUNDATION_CHOICES = [
+        ("FIXED", "Móng cố định"),
+        ("FLOATING", "Móng nổi"),
+    ]
 
     farm = models.ForeignKey(
         WindFarm, on_delete=models.CASCADE, related_name="turbines", verbose_name="Trang trại gió"
     )
     point_id = models.IntegerField(verbose_name="Mã điểm/tuabin")
+    name = models.CharField(max_length=255, blank=True, default="", verbose_name="Tên điểm")
+    zone = models.CharField(max_length=64, blank=True, default="", verbose_name="Vùng biển")
     geom = models.PointField(srid=4326, verbose_name="Tọa độ không gian (Geometry)")
     latitude = models.DecimalField(max_digits=9, decimal_places=6, verbose_name="Vĩ độ")
     longitude = models.DecimalField(max_digits=9, decimal_places=6, verbose_name="Kinh độ")
-    wind_speed_100m = models.FloatField(verbose_name="Tốc độ gió ở độ cao 100m (m/s)")
-    wind_direction = models.FloatField(verbose_name="Hướng gió (độ)")
+    wind_speed_100m = models.FloatField(null=True, blank=True, verbose_name="Tốc độ gió ở độ cao 100m (m/s)")
+    wind_direction = models.FloatField(null=True, blank=True, verbose_name="Hướng gió (độ)")
     sea_depth = models.FloatField(verbose_name="Độ sâu đáy biển GEBCO (m)")
+    foundation_type = models.CharField(
+        max_length=16, choices=FOUNDATION_CHOICES, blank=True, default="", verbose_name="Loại móng"
+    )
     predicted_power_mw = models.FloatField(verbose_name="Công suất dự kiến (MW)")
-    capacity_factor = models.FloatField(verbose_name="Hệ số công suất (%)")
+    capacity_factor = models.FloatField(null=True, blank=True, verbose_name="Hệ số công suất (%)")
     status = models.CharField(max_length=32, choices=STATUS_CHOICES, default="PROPOSED", verbose_name="Trạng thái")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Thời gian tạo")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Thời gian cập nhật")
@@ -81,10 +87,18 @@ class WindTurbine(models.Model):
         indexes = [
             models.Index(fields=["farm", "point_id"]),
             models.Index(fields=["predicted_power_mw"]),
+            models.Index(fields=["zone"]),
+            models.Index(fields=["foundation_type"]),
         ]
 
     def __str__(self):
         return f"Tuabin {self.point_id} - {self.farm.code} ({self.predicted_power_mw:.1f} MW)"
+
+    @staticmethod
+    def foundation_for_depth(depth):
+        if depth is None:
+            return ""
+        return "FIXED" if depth <= FIXED_FOUNDATION_MAX_DEPTH else "FLOATING"
 
     def save(self, *args, **kwargs):
         if self.geom and (self.latitude is None or self.longitude is None):
@@ -93,6 +107,10 @@ class WindTurbine(models.Model):
         elif self.latitude is not None and self.longitude is not None and not self.geom:
             from django.contrib.gis.geos import Point
             self.geom = Point(float(self.longitude), float(self.latitude), srid=4326)
+        if not self.zone and self.farm_id:
+            self.zone = self.farm.location_name or ""
+        if not self.foundation_type:
+            self.foundation_type = self.foundation_for_depth(self.sea_depth)
         super().save(*args, **kwargs)
 
 

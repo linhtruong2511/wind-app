@@ -2,7 +2,6 @@
  * Wind Management API Client for GeoNode MapStore Client
  */
 import axios from 'axios';
-import windFarmsData from '../data/windFarmsData.json';
 
 const BASE_URL = '/wind/api/v1';
 
@@ -90,107 +89,38 @@ export const getStatisticsExportUrl = (params = {}) => {
     return `${BASE_URL}/statistics/export-csv/${query ? `?${query}` : ''}`;
 };
 
+// Bỏ các tham số rỗng để không gửi lên máy chủ
+const cleanParams = (params = {}) => Object.fromEntries(
+    Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== '')
+);
+
 export const getWindFarms = (params = {}) => {
-    return new Promise((resolve) => {
-        let filtered = [...windFarmsData];
-        const { search, minPower, maxDepth, foundationType, zone, page = 1, pageSize = 50 } = params;
-
-        if (search) {
-            const query = String(search).trim().toLowerCase();
-            filtered = filtered.filter(item =>
-                String(item.point_id).includes(query) ||
-                (item.name && item.name.toLowerCase().includes(query)) ||
-                (item.zone && item.zone.toLowerCase().includes(query))
-            );
-        }
-
-        if (minPower) {
-            const minP = parseFloat(minPower);
-            if (!isNaN(minP)) {
-                filtered = filtered.filter(item => item.predicted_power_mw >= minP);
-            }
-        }
-
-        if (maxDepth) {
-            const maxD = parseFloat(maxDepth);
-            if (!isNaN(maxD)) {
-                filtered = filtered.filter(item => item.depth_m <= maxD);
-            }
-        }
-
-        if (foundationType) {
-            if (foundationType === 'fixed') {
-                filtered = filtered.filter(item => item.depth_m <= 50);
-            } else if (foundationType === 'floating') {
-                filtered = filtered.filter(item => item.depth_m > 50);
-            }
-        }
-
-        if (zone) {
-            filtered = filtered.filter(item => item.zone === zone);
-        }
-
-        const totalCount = filtered.length;
-        const start = (page - 1) * pageSize;
-        const results = filtered.slice(start, start + pageSize);
-
-        resolve({
-            count: totalCount,
-            results
-        });
-    });
+    return axios.get(`${BASE_URL}/turbines/`, { params: cleanParams(params) })
+        .then(response => response.data);
 };
 
 export const getWindFarmsMap = (params = {}) => {
-    return new Promise((resolve) => {
-        let filtered = [...windFarmsData];
-        const { search, minPower, foundationType, zone } = params;
+    return axios.get(`${BASE_URL}/turbines/map/`, { params: cleanParams(params) })
+        .then(response => response.data);
+};
 
-        if (search) {
-            const query = String(search).trim().toLowerCase();
-            filtered = filtered.filter(item =>
-                String(item.point_id).includes(query) ||
-                (item.name && item.name.toLowerCase().includes(query)) ||
-                (item.zone && item.zone.toLowerCase().includes(query))
-            );
-        }
+// Lưới giá trị nội suy do máy chủ tính. params gồm method, metric và các bộ lọc như danh sách tuabin
+export const getInterpolationGrid = (params = {}, { signal } = {}) => {
+    return axios.get(`${BASE_URL}/turbines/interpolation/grid/`, { params: cleanParams(params), signal })
+        .then(response => response.data);
+};
 
-        if (minPower) {
-            const minP = parseFloat(minPower);
-            if (!isNaN(minP)) {
-                filtered = filtered.filter(item => item.predicted_power_mw >= minP);
-            }
-        }
+// Giá trị nội suy tại một toạ độ. params gồm method, lon, lat và các bộ lọc
+export const getInterpolationPoint = (params = {}, { signal } = {}) => {
+    return axios.get(`${BASE_URL}/turbines/interpolation/point/`, { params: cleanParams(params), signal })
+        .then(response => response.data);
+};
 
-        if (foundationType) {
-            if (foundationType === 'fixed') {
-                filtered = filtered.filter(item => item.depth_m <= 50);
-            } else if (foundationType === 'floating') {
-                filtered = filtered.filter(item => item.depth_m > 50);
-            }
-        }
-
-        if (zone) {
-            filtered = filtered.filter(item => item.zone === zone);
-        }
-
-        const geojson = {
-            type: 'FeatureCollection',
-            features: filtered.map(item => ({
-                type: 'Feature',
-                id: item.id,
-                geometry: {
-                    type: 'Point',
-                    coordinates: [item.longitude, item.latitude]
-                },
-                properties: {
-                    ...item
-                }
-            }))
-        };
-
-        resolve(geojson);
-    });
+// Đường dẫn tải tệp danh sách tuabin theo bộ lọc, output là 'csv' hoặc 'geojson'
+export const getTurbinesExportUrl = (params = {}, output = 'csv') => {
+    const { page, pageSize, ...filters } = params;
+    const query = new URLSearchParams({ ...cleanParams(filters), output }).toString();
+    return `${BASE_URL}/turbines/export/?${query}`;
 };
 
 export default {
@@ -211,7 +141,10 @@ export default {
     getWindRoseData,
     getStatisticsExportUrl,
     getWindFarms,
-    getWindFarmsMap
+    getWindFarmsMap,
+    getInterpolationGrid,
+    getInterpolationPoint,
+    getTurbinesExportUrl
 };
 
 

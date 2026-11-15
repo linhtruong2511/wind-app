@@ -12,22 +12,21 @@ from .models import (
 )
 
 
+TURBINE_STATUS_ALIASES = {"OPERATING": "OPERATIONAL"}
+
+
 class WindTurbineSerializer(serializers.ModelSerializer):
     farm_code = serializers.CharField(source="farm.code", read_only=True)
     farm_name = serializers.CharField(source="farm.name", read_only=True)
-    zone = serializers.CharField(source="farm.location_name", read_only=True)
     depth_m = serializers.FloatField(source="sea_depth", required=False)
     capacity_mw = serializers.FloatField(source="predicted_power_mw", required=False)
     geom = serializers.CharField(required=False, write_only=True)
 
-    latitude = serializers.DecimalField(max_digits=9, decimal_places=6, required=False)
-    longitude = serializers.DecimalField(max_digits=9, decimal_places=6, required=False)
-    wind_speed_100m = serializers.FloatField(required=False, default=8.0)
-    wind_direction = serializers.FloatField(required=False, default=90.0)
-    sea_depth = serializers.FloatField(required=False, default=15.0)
-    predicted_power_mw = serializers.FloatField(required=False, default=4.0)
-    capacity_factor = serializers.FloatField(required=False, default=40.0)
-    status = serializers.CharField(required=False, default="OPERATIONAL")
+    latitude = serializers.FloatField(required=False)
+    longitude = serializers.FloatField(required=False)
+    foundation_type = serializers.ChoiceField(choices=WindTurbine.FOUNDATION_CHOICES, required=False)
+    foundation_type_display = serializers.CharField(source="get_foundation_type_display", read_only=True)
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
 
     class Meta:
         model = WindTurbine
@@ -37,41 +36,41 @@ class WindTurbineSerializer(serializers.ModelSerializer):
             "farm_code",
             "farm_name",
             "point_id",
+            "name",
+            "zone",
             "latitude",
             "longitude",
             "wind_speed_100m",
             "wind_direction",
             "sea_depth",
             "depth_m",
+            "foundation_type",
+            "foundation_type_display",
             "predicted_power_mw",
             "capacity_mw",
             "capacity_factor",
-            "zone",
             "status",
+            "status_display",
             "geom",
             "created_at",
             "updated_at",
         ]
+        extra_kwargs = {
+            "sea_depth": {"required": False},
+            "predicted_power_mw": {"required": False},
+        }
 
     def to_internal_value(self, data):
         data = data.copy() if hasattr(data, "copy") else dict(data)
 
-        # 1. Map point_id if string (e.g. "TB_1234" -> 1234)
-        raw_point_id = data.get("point_id")
-        if raw_point_id is not None:
-            if isinstance(raw_point_id, str):
-                digits = re.findall(r"\d+", raw_point_id)
-                if digits:
-                    data["point_id"] = int("".join(digits))
-                else:
-                    data["point_id"] = 1
-            elif not isinstance(raw_point_id, int):
-                try:
-                    data["point_id"] = int(raw_point_id)
-                except (ValueError, TypeError):
-                    data["point_id"] = 1
+        # 1. Mã điểm dạng chuỗi (ví dụ "TB_1234") -> số 1234 (user: Tôi nghĩ là cái này không cần thiết đâu)
+        # raw_point_id = data.get("point_id")
+        # if isinstance(raw_point_id, str):
+        #     digits = re.findall(r"\d+", raw_point_id)
+        #     if digits:
+        #         data["point_id"] = int("".join(digits))
 
-        # 2. Extract coordinates from geom if latitude/longitude missing
+        # 2. Lấy tọa độ từ geom (WKT/EWKT) nếu thiếu vĩ độ, kinh độ
         geom_val = data.get("geom")
         if geom_val and (data.get("latitude") is None or data.get("longitude") is None):
             try:
@@ -84,26 +83,41 @@ class WindTurbineSerializer(serializers.ModelSerializer):
             except Exception:
                 pass
 
-        # 3. Map capacity_mw <-> predicted_power_mw
+        # 3. Ánh xạ tên trường thay thế
         if "capacity_mw" in data and "predicted_power_mw" not in data:
             data["predicted_power_mw"] = data["capacity_mw"]
-        elif "predicted_power_mw" in data and "capacity_mw" not in data:
-            data["capacity_mw"] = data["predicted_power_mw"]
-
-        # 4. Map depth_m <-> sea_depth
         if "depth_m" in data and "sea_depth" not in data:
             data["sea_depth"] = data["depth_m"]
 
-        # 5. Normalize status (OPERATING -> OPERATIONAL)
-        status_val = str(data.get("status", "")).upper()
-        if status_val in ["OPERATING", "OPERATIONAL"]:
-            data["status"] = "OPERATIONAL"
-        elif status_val in ["UNDER_CONSTRUCTION", "PLANNED", "PROPOSED", "INSTALLED"]:
-            data["status"] = status_val
-        else:
-            data["status"] = "INSTALLED"
+        # 4. Chuẩn hóa trạng thái (OPERATING -> OPERATIONAL)
+        status_val = data.get("status")
+        if status_val:
+            status_val = str(status_val).upper()
+            data["status"] = TURBINE_STATUS_ALIASES.get(status_val, status_val)
 
         return super().to_internal_value(data)
+
+    def validate(self, attrs):
+        if self.instance is None:
+            missing = [f for f in ("sea_depth", "predicted_power_mw") if attrs.get(f) is None]
+            if missing:
+                raise serializers.ValidationError(
+                    {f: "Trường này là bắt buộc." for f in missing}
+                )
+            if attrs.get("latitude") is None and attrs.get("longitude") is None and not attrs.get("geom"):
+                raise serializers.ValidationError({"geom": "Cần cung cấp tọa độ."})
+        return attrs
+
+    def create(self, validated_data):
+        geom_val = validated_data.pop("geom", None)
+        if geom_val:
+            geom_str = str(geom_val).split(";", 1)[-1]
+            validated_data["geom"] = GEOSGeometry(geom_str, srid=4326)
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        validated_data.pop("geom", None)
+        return super().update(instance, validated_data)
 
     def to_representation(self, instance):
         ret = super().to_representation(instance)
@@ -115,8 +129,10 @@ class WindTurbineSerializer(serializers.ModelSerializer):
 class WindTurbineGeoSerializer(GeoFeatureModelSerializer):
     farm_code = serializers.CharField(source="farm.code", read_only=True)
     farm_name = serializers.CharField(source="farm.name", read_only=True)
-    zone = serializers.CharField(source="farm.location_name", read_only=True)
     depth_m = serializers.FloatField(source="sea_depth", read_only=True)
+    latitude = serializers.FloatField(read_only=True)
+    longitude = serializers.FloatField(read_only=True)
+    foundation_type_display = serializers.CharField(source="get_foundation_type_display", read_only=True)
 
     class Meta:
         model = WindTurbine
@@ -127,15 +143,18 @@ class WindTurbineGeoSerializer(GeoFeatureModelSerializer):
             "farm_code",
             "farm_name",
             "point_id",
+            "name",
+            "zone",
             "latitude",
             "longitude",
             "wind_speed_100m",
             "wind_direction",
             "sea_depth",
             "depth_m",
+            "foundation_type",
+            "foundation_type_display",
             "predicted_power_mw",
             "capacity_factor",
-            "zone",
             "status",
         ]
 

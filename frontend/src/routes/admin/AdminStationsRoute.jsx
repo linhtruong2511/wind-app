@@ -5,7 +5,6 @@ import {
     createStation,
     updateStation,
     deleteStation,
-    importObservationsFile,
     getAdminDatasets,
     getDataLakeOverview,
     getDataLakePartitions,
@@ -82,7 +81,6 @@ const AdminStationsRoute = () => {
     // ==========================================
     // 3. Ingestion State
     // ==========================================
-    const [importTarget, setImportTarget] = useState('lake'); // 'lake' | 'db'
     const [importFile, setImportFile] = useState(null);
     const [dryRunLoading, setDryRunLoading] = useState(false);
     const [dryRunData, setDryRunData] = useState(null);
@@ -197,11 +195,7 @@ const AdminStationsRoute = () => {
         setFeedback(null);
         setDryRunData(null);
 
-        const apiCall = importTarget === 'lake'
-            ? importDataLakeFile(importFile, true)
-            : importObservationsFile(importFile, true);
-
-        apiCall.then(res => {
+        importDataLakeFile(importFile, true).then(res => {
             setDryRunData(res);
             setDryRunLoading(false);
         }).catch(err => {
@@ -214,11 +208,7 @@ const AdminStationsRoute = () => {
         if (!importFile) return;
         setImportLoading(true);
 
-        const apiCall = importTarget === 'lake'
-            ? importDataLakeFile(importFile, false)
-            : importObservationsFile(importFile, false);
-
-        apiCall.then(res => {
+        importDataLakeFile(importFile, false).then(res => {
             setFeedback({ type: 'success', message: res.message || 'Nạp dữ liệu quan trắc thành công!' });
             setImportLoading(false);
             setImportFile(null);
@@ -382,7 +372,7 @@ const AdminStationsRoute = () => {
                         cursor: 'pointer'
                     }}
                 >
-                    <i className="fa fa-map-marker" style={{ marginRight: '8px' }}></i>Danh sách Trạm đo ({stations.length})
+                    <i className="fa fa-map-marker" style={{ marginRight: '8px' }}></i>Danh sách trạm đo ({stations.length})
                 </button>
                 <button
                     onClick={() => setActiveTab('datalake')}
@@ -699,37 +689,13 @@ Theo chu kỳ quan trắc
                         Hỗ trợ tệp Excel hoặc CSV. Dữ liệu sẽ được tự động làm sạch, kiểm tra trùng lặp và lưu trữ.
                     </p>
 
-                    {/* Lựa chọn kho lưu trữ đích */}
                     <div style={{ marginBottom: '20px', padding: '16px', borderRadius: '8px', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-                        <label style={{ fontSize: '13px', fontWeight: 700, color: '#1e293b', marginBottom: '10px', display: 'block' }}>
-                            Chọn nơi lưu trữ dữ liệu:
-                        </label>
-                        <div style={{ display: 'flex', gap: '24px' }}>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: '#0284c7' }}>
-                                <input
-                                    type="radio"
-                                    name="import_target"
-                                    value="lake"
-                                    checked={importTarget === 'lake'}
-                                    onChange={() => setImportTarget('lake')}
-                                />
-                                Kho dữ liệu nén, khuyến nghị cho dữ liệu lớn
-                            </label>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: '#64748b' }}>
-                                <input
-                                    type="radio"
-                                    name="import_target"
-                                    value="db"
-                                    checked={importTarget === 'db'}
-                                    onChange={() => setImportTarget('db')}
-                                />
-                                Cơ sở dữ liệu
-                            </label>
+                        <div style={{ fontSize: '13px', fontWeight: 700, color: '#0284c7' }}>
+                            <i className="fa fa-database" style={{ marginRight: '8px' }}></i>
+                            Dữ liệu được lưu vào kho dữ liệu nén
                         </div>
                         <p style={{ fontSize: '12px', color: '#64748b', margin: '8px 0 0 0' }}>
-                            {importTarget === 'lake'
-                                ? 'Dữ liệu được nén theo cột, chia tệp theo trạm và năm, ghi nhanh mà không làm chậm hệ thống.'
-                                : 'Dữ liệu được ghi trực tiếp vào cơ sở dữ liệu.'}
+                            Dữ liệu được nén theo cột, chia tệp theo trạm và năm, ghi nhanh mà không làm chậm hệ thống.
                         </p>
                     </div>
 
@@ -1146,7 +1112,7 @@ Theo chu kỳ quan trắc
                                 <div className="form-group">
                                     <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Mã trạm *</label>
                                     <input
-                                        disabled
+                                        disabled={stationForm.id != null}
                                         type="text"
                                         className="form-control"
                                         value={stationForm.station_code}

@@ -9,12 +9,11 @@ class StationAdmin(gis_admin.GISModelAdmin):
     list_display = (
         "station_code",
         "name",
-        "dataset",
         "station_type",
         "elevation",
         "is_active",
     )
-    list_filter = ("is_active", "station_type", "dataset")
+    list_filter = ("is_active", "station_type")
     search_fields = ("station_code", "name")
 
 

@@ -27,9 +27,9 @@ import Overlay from 'ol/Overlay';
 import { Style, Circle as CircleStyle, Fill, Stroke } from 'ol/style';
 import { defaults as defaultControls, ScaleLine, FullScreen } from 'ol/control';
 
-import { getWindFarmsMap } from '../../api/wind';
+import { getWindFarmsMap, getInterpolationGrid, getInterpolationPoint } from '../../api/wind';
 import { HEATMAP_METRICS, getHeatmapWeight } from '../../utils/WindFarmHeatmapUtils';
-import { createInterpolationCanvas, interpolatePoint } from '../../utils/windInterpolation';
+import { createInterpolationCanvas } from '../../utils/windInterpolation';
 import WindFarmHeatmapControls from './WindFarmHeatmapControls';
 import WindFarmMapLegend from './WindFarmMapLegend';
 
@@ -92,6 +92,17 @@ const WindFarmMapContainer = ({
 
     const interpolationMethodRef = useRef(interpolationMethod);
     interpolationMethodRef.current = interpolationMethod;
+
+    const heatmapOpacityRef = useRef(heatmapOpacity);
+    heatmapOpacityRef.current = heatmapOpacity;
+
+    const filtersRef = useRef(filters);
+    filtersRef.current = filters;
+
+    // Yêu cầu nội suy đang chờ: lớp màu và giá trị tại điểm bấm do máy chủ tính
+    const interpolationRequestRef = useRef(null);
+    const interpolationClickRef = useRef({ id: 0, controller: null });
+    const [interpolating, setInterpolating] = useState(false);
 
     // 1. Initialize OpenLayers Map (Mount once)
     useEffect(() => {
@@ -242,9 +253,18 @@ const WindFarmMapContainer = ({
             });
 
             // Single click feature with Nearest Feature Snapping & Continuous Interpolation Evaluation
-            map.on('singleclick', (evt) => {
+            // skipInterpolation = true khi máy chủ không có giá trị nội suy tại điểm bấm, chỉ còn cách bắt dính điểm gần nhất
+            const handleSingleClick = (evt, skipInterpolation = false) => {
                 if (popupTargetRef.current && popupTargetRef.current.contains(evt.originalEvent.target)) {
                     return;
+                }
+
+                // Một lần bấm mới làm mất hiệu lực yêu cầu nội suy của lần bấm trước
+                const clickState = interpolationClickRef.current;
+                if (!skipInterpolation) {
+                    if (clickState.controller) clickState.controller.abort();
+                    clickState.controller = null;
+                    clickState.id += 1;
                 }
 
                 let feature = map.forEachFeatureAtPixel(evt.pixel, (f) => f);
@@ -269,26 +289,41 @@ const WindFarmMapContainer = ({
                 // 2. When IDW or Kriging is active and Heatmap is visible, evaluate interpolated value at clicked coordinate
                 const currentMethod = interpolationMethodRef.current;
                 const currentViewMode = viewModeRef.current;
-                if (currentMethod !== 'kde' && currentViewMode !== 'points' && vectorSourceRef.current) {
+                if (!skipInterpolation && currentMethod !== 'kde' && currentViewMode !== 'points' && vectorSourceRef.current) {
                     const lonLat = toLonLat(evt.coordinate);
-                    const features = vectorSourceRef.current.getFeatures();
-                    const interpolated = interpolatePoint(features, lonLat[0], lonLat[1], currentMethod);
+                    const controller = new AbortController();
+                    clickState.controller = controller;
+                    const clickId = clickState.id;
 
-                    if (interpolated) {
-                        overlay.setPosition(evt.coordinate);
-                        setPopupPoint({
-                            _isInterpolated: true,
-                            method: currentMethod,
-                            latitude: lonLat[1],
-                            longitude: lonLat[0],
-                            predicted_power_mw: interpolated.predicted_power_mw,
-                            wind_speed_100m: interpolated.wind_speed_100m,
-                            depth_m: interpolated.depth_m,
-                            closestPoint: interpolated.closestPoint,
-                            _closestDistanceKm: interpolated.closestDistanceKm
+                    getInterpolationPoint(
+                        { ...filtersRef.current, method: currentMethod, lon: lonLat[0], lat: lonLat[1] },
+                        { signal: controller.signal }
+                    )
+                        .then((result) => {
+                            if (clickId !== clickState.id) return;
+                            if (result && result.available) {
+                                overlay.setPosition(evt.coordinate);
+                                setPopupPoint({
+                                    _isInterpolated: true,
+                                    method: currentMethod,
+                                    latitude: lonLat[1],
+                                    longitude: lonLat[0],
+                                    predicted_power_mw: result.predicted_power_mw,
+                                    wind_speed_100m: result.wind_speed_100m,
+                                    depth_m: result.depth_m,
+                                    closestPoint: result.closest_point,
+                                    _closestDistanceKm: result.closest_distance_km
+                                });
+                            } else {
+                                handleSingleClick(evt, true);
+                            }
+                        })
+                        .catch((err) => {
+                            if (clickId !== clickState.id) return;
+                            console.error('Error fetching interpolated value:', err);
+                            handleSingleClick(evt, true);
                         });
-                        return;
-                    }
+                    return;
                 }
 
                 // 3. Fallback: Snap to nearest feature within 40px
@@ -328,7 +363,8 @@ const WindFarmMapContainer = ({
                     overlay.setPosition(undefined);
                     setPopupPoint(null);
                 }
-            });
+            };
+            map.on('singleclick', (evt) => handleSingleClick(evt));
 
             mapInstanceRef.current = map;
 
@@ -345,6 +381,13 @@ const WindFarmMapContainer = ({
         return () => {
             if (timer) clearTimeout(timer);
             if (handleResize) window.removeEventListener('resize', handleResize);
+            // Hủy các yêu cầu nội suy còn đang chờ
+            if (interpolationRequestRef.current) interpolationRequestRef.current.abort();
+            interpolationRequestRef.current = null;
+            const clickState = interpolationClickRef.current;
+            if (clickState.controller) clickState.controller.abort();
+            clickState.controller = null;
+            clickState.id += 1;
             if (map) {
                 map.setTarget(null);
                 mapInstanceRef.current = null;
@@ -361,54 +404,79 @@ const WindFarmMapContainer = ({
         }
     };
 
-    // Helper: Update IDW / Kriging Interpolation Image Layer
+    // Helper: cập nhật lớp ảnh nội suy IDW / Kriging. Lưới giá trị do máy chủ tính, ở đây chỉ tô màu.
+    // Hàm này ổn định (không đổi giữa các lần render) và đọc trạng thái hiện tại qua ref.
     const updateInterpolation = useCallback(() => {
-        if (!interpolationLayerRef.current || !vectorSourceRef.current) return;
+        const layer = interpolationLayerRef.current;
+        if (!layer || !vectorSourceRef.current) return;
+
+        // Hủy yêu cầu đang chờ, kết quả của nó đã lỗi thời
+        const pending = interpolationRequestRef.current;
+        if (pending) pending.abort();
+        interpolationRequestRef.current = null;
+
         const currentMethod = interpolationMethodRef.current;
+        const currentViewMode = viewModeRef.current;
 
         if (currentMethod === 'kde') {
             if (heatmapLayerRef.current) {
-                heatmapLayerRef.current.setVisible(viewMode === 'heatmap' || viewMode === 'both');
+                heatmapLayerRef.current.setVisible(currentViewMode === 'heatmap' || currentViewMode === 'both');
             }
-            interpolationLayerRef.current.setVisible(false);
+            layer.setVisible(false);
+            setInterpolating(false);
             return;
         }
 
-        // Hide KDE layer when IDW or Kriging is active
+        // Ẩn lớp KDE khi dùng IDW hoặc Kriging
         if (heatmapLayerRef.current) {
             heatmapLayerRef.current.setVisible(false);
         }
 
-        if (viewMode === 'points') {
-            interpolationLayerRef.current.setVisible(false);
+        if (currentViewMode === 'points' || vectorSourceRef.current.getFeatures().length === 0) {
+            layer.setVisible(false);
+            setInterpolating(false);
             return;
         }
 
-        const features = vectorSourceRef.current.getFeatures();
-        if (!features || features.length === 0) {
-            interpolationLayerRef.current.setVisible(false);
-            return;
-        }
+        // Giữ lớp cũ hiển thị trong lúc chờ, chỉ thay khi lưới mới về
+        const controller = new AbortController();
+        interpolationRequestRef.current = controller;
+        setInterpolating(true);
 
-        const result = createInterpolationCanvas(features, heatmapMetricRef.current, currentMethod);
-        if (!result || !result.canvas || !result.bbox) {
-            interpolationLayerRef.current.setVisible(false);
-            return;
-        }
+        const metricKey = heatmapMetricRef.current;
+        getInterpolationGrid(
+            { ...filtersRef.current, method: currentMethod, metric: metricKey },
+            { signal: controller.signal }
+        )
+            .then((grid) => {
+                if (controller.signal.aborted) return;
+                const result = createInterpolationCanvas(grid, metricKey);
+                if (!result) {
+                    layer.setVisible(false);
+                    return;
+                }
 
-        const { canvas, bbox } = result;
-        const [minLon, minLat, maxLon, maxLat] = bbox;
-        const extent3857 = transformExtent([minLon, minLat, maxLon, maxLat], 'EPSG:4326', 'EPSG:3857');
-
-        const source = new ImageStatic({
-            url: canvas.toDataURL(),
-            imageExtent: extent3857
-        });
-
-        interpolationLayerRef.current.setSource(source);
-        interpolationLayerRef.current.setOpacity(heatmapOpacity);
-        interpolationLayerRef.current.setVisible(true);
-    }, [viewMode, heatmapOpacity]);
+                const [minLon, minLat, maxLon, maxLat] = result.bbox;
+                const extent3857 = transformExtent([minLon, minLat, maxLon, maxLat], 'EPSG:4326', 'EPSG:3857');
+                layer.setSource(new ImageStatic({
+                    url: result.canvas.toDataURL(),
+                    imageExtent: extent3857
+                }));
+                layer.setOpacity(heatmapOpacityRef.current);
+                layer.setVisible(true);
+            })
+            .catch((err) => {
+                if (controller.signal.aborted) return;
+                console.error('Error fetching interpolation grid:', err);
+                layer.setVisible(false);
+            })
+            .finally(() => {
+                if (interpolationRequestRef.current === controller) {
+                    interpolationRequestRef.current = null;
+                    setInterpolating(false);
+                }
+            });
+    }, []);
 
     // 3. React on ViewMode changes
     useEffect(() => {
@@ -547,7 +615,7 @@ const WindFarmMapContainer = ({
             />
 
             {/* Loading Indicator */}
-            {loading && (
+            {(loading || interpolating) && (
                 <div
                     style={{
                         position: 'absolute',
@@ -565,7 +633,7 @@ const WindFarmMapContainer = ({
                         gap: '6px'
                     }}
                 >
-                    <i className="fa fa-spinner fa-spin" /> Đang tải điểm tiềm năng...
+                    <i className="fa fa-spinner fa-spin" /> {loading ? 'Đang tải điểm tiềm năng...' : 'Đang cập nhật lớp màu...'}
                 </div>
             )}
 
@@ -715,7 +783,7 @@ const WindFarmMapContainer = ({
                                     <strong>Hệ số công suất:</strong> {Number(popupPoint.capacity_factor || 0).toFixed(2)}%
                                 </div>
                                 <div>
-                                    <strong>Độ sâu đáy biển:</strong> {Number(popupPoint.depth_m || 0).toFixed(0)} m, {popupPoint.foundation_type || (popupPoint.depth_m <= 50 ? 'móng cố định' : 'móng nổi')}
+                                    <strong>Độ sâu đáy biển:</strong> {Number(popupPoint.depth_m || 0).toFixed(0)} m, {(popupPoint.foundation_type_display || '').toLowerCase()}
                                 </div>
                                 <div>
                                     <strong>Gió ở 100 m:</strong> {Number(popupPoint.wind_speed_100m || 0).toFixed(2)} m/s, hướng {Number(popupPoint.wind_direction || 0).toFixed(1)}°

@@ -445,13 +445,7 @@ class DataLakeTestCase(TestCase):
         )
         self.client = APIClient()
 
-        self.dataset = Dataset.objects.create(
-            code="LAKE_DATA",
-            name="Lake Dataset",
-            category="STATION",
-        )
         self.station = Station.objects.create(
-            dataset=self.dataset,
             station_code="TEST_STATION",
             name="Trạm Test Parquet",
             geom=Point(108.0, 15.0),
@@ -514,4 +508,76 @@ class DataLakeTestCase(TestCase):
 
         # 7. Cleanup
         delete_partition("TEST_STATION", 2025)
+
+    def _ingest_sample(self):
+        import pandas as pd
+        from wind_stations.services.duckdb_storage_service import ingest_dataframe_to_parquet
+
+        df = pd.DataFrame({
+            "station_code": ["TEST_STATION", "TEST_STATION"],
+            "obs_time": ["2025-01-01 00:00:00", "2025-01-01 01:00:00"],
+            "wind_speed": [4.5, 7.2],
+            "wind_dir": [90.0, 180.0],
+        })
+        ingest_dataframe_to_parquet(df)
+        self.addCleanup(self._cleanup_partition)
+
+    def _cleanup_partition(self):
+        from wind_stations.services.duckdb_storage_service import delete_partition
+        delete_partition("TEST_STATION", 2025)
+
+    def test_download_partition_parquet(self):
+        self._ingest_sample()
+        res = self.client.get(
+            "/wind/api/v1/datalake/download/?file_format=parquet&station_code=TEST_STATION&year=2025"
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertIn("TEST_STATION_2025.parquet", res["Content-Disposition"])
+        content = b"".join(res.streaming_content)
+        self.assertTrue(content.startswith(b"PAR1"))
+
+    def test_download_csv(self):
+        self._ingest_sample()
+        res = self.client.get("/wind/api/v1/datalake/download/?file_format=csv&station_code=TEST_STATION")
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res["Content-Type"], "text/csv")
+        lines = res.content.decode("utf-8").strip().splitlines()
+        self.assertEqual(len(lines), 3)  # tiêu đề + 2 dòng dữ liệu
+
+    def test_download_filtered_parquet_without_year(self):
+        self._ingest_sample()
+        res = self.client.get(
+            "/wind/api/v1/datalake/download/?file_format=parquet&station_code=TEST_STATION&start_date=2025-01-01"
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertTrue(res.content.startswith(b"PAR1"))
+
+    def test_download_rejects_invalid_input(self):
+        res = self.client.get("/wind/api/v1/datalake/download/?file_format=xlsx")
+        self.assertEqual(res.status_code, 400)
+        res = self.client.get("/wind/api/v1/datalake/download/?file_format=csv&station_code=../etc")
+        self.assertEqual(res.status_code, 400)
+        res = self.client.get("/wind/api/v1/datalake/download/?file_format=parquet&station_code=TEST_STATION&year=abc")
+        self.assertEqual(res.status_code, 400)
+
+    def test_import_file_goes_to_lake_only(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from wind_stations.models import Observation
+
+        self.client.force_authenticate(user=self.admin_user)
+        csv_bytes = (
+            "station_code,obs_time,wind_speed,wind_dir\n"
+            "TEST_STATION,2025-01-01 00:00:00,4.5,90\n"
+            "TEST_STATION,2025-01-01 01:00:00,7.2,180\n"
+        ).encode("utf-8")
+        upload = SimpleUploadedFile("obs.csv", csv_bytes, content_type="text/csv")
+        res = self.client.post("/wind/api/v1/datalake/import-file/", {"file": upload}, format="multipart")
+        self.assertEqual(res.status_code, 200)
+        self.addCleanup(self._cleanup_partition)
+        self.assertEqual(Observation.objects.count(), 0)
+
+        # Luồng nạp trực tiếp vào cơ sở dữ liệu quan hệ đã bị gỡ bỏ
+        upload2 = SimpleUploadedFile("obs.csv", csv_bytes, content_type="text/csv")
+        res_old = self.client.post("/wind/api/v1/observations/import-file/", {"file": upload2}, format="multipart")
+        self.assertIn(res_old.status_code, (404, 405))
 
