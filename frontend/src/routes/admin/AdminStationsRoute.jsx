@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
 import {
     getAdminStations,
@@ -24,6 +24,166 @@ const STATION_TYPE_LABELS = {
     SURFACE: 'Bề mặt',
     MET_MAST: 'Cột khí tượng',
     BUOY: 'Phao biển'
+};
+
+// Tệp CSV mẫu và định dạng cho chức năng nhập/xuất danh sách trạm đo
+const STATION_CSV_HEADER = ['station_code', 'name', 'station_type', 'elevation', 'lat', 'lon', 'is_active'];
+const STATION_CSV_TEMPLATE_ROWS = [
+    ['PHU_QUY', 'Trạm khí tượng Phú Quý', 'SURFACE', '15.5', '10.518', '108.932', '1'],
+    ['COT_DO_01', 'Cột đo gió số 1', 'MET_MAST', '42', '11.254', '109.101', '1'],
+    ['PHAO_01', 'Phao quan trắc số 1', 'BUOY', '', '9.876', '107.654', '0'],
+];
+// Chấp nhận cả mã loại trạm lẫn tên hiển thị tiếng Việt
+const STATION_TYPE_LOOKUP = {
+    surface: 'SURFACE',
+    met_mast: 'MET_MAST',
+    buoy: 'BUOY',
+    'bề mặt': 'SURFACE',
+    'cột khí tượng': 'MET_MAST',
+    'phao biển': 'BUOY'
+};
+const TRUE_VALUES = ['1', 'true', 'yes', 'có', 'hoạt động', 'đang vận hành'];
+const FALSE_VALUES = ['0', 'false', 'no', 'không', 'tắt'];
+
+const csvEscape = (value) => {
+    const text = value === null || value === undefined ? '' : String(value);
+    return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+};
+
+// Thêm BOM UTF-8 ở đầu tệp để Excel nhận đúng tiếng Việt khi mở tệp
+const UTF8_BOM = String.fromCharCode(0xFEFF);
+
+const downloadCsvFile = (filename, rows) => {
+    const content = rows.map(row => row.map(csvEscape).join(',')).join('\r\n');
+    const blob = new Blob([UTF8_BOM + content + '\r\n'], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+};
+
+// Trả về danh sách dòng, mỗi dòng kèm số thứ tự dòng trong tệp; tự nhận dấu phân cách "," hoặc ";"
+const parseCsv = (text) => {
+    const src = text.charCodeAt(0) === 0xFEFF ? text.slice(1) : text;
+    const firstLine = src.split(/\r\n|\n|\r/)[0] || '';
+    const delimiter = firstLine.includes(';') && !firstLine.includes(',') ? ';' : ',';
+    const rows = [];
+    let row = [];
+    let field = '';
+    let inQuotes = false;
+    let line = 1;
+    let rowLine = 1;
+    const pushRow = () => {
+        row.push(field);
+        rows.push({ line: rowLine, cells: row });
+        row = [];
+        field = '';
+    };
+    for (let i = 0; i < src.length; i++) {
+        const ch = src[i];
+        if (inQuotes) {
+            if (ch === '"') {
+                if (src[i + 1] === '"') { field += '"'; i++; } else { inQuotes = false; }
+            } else {
+                if (ch === '\n') line++;
+                field += ch;
+            }
+        } else if (ch === '"') {
+            inQuotes = true;
+        } else if (ch === delimiter) {
+            row.push(field);
+            field = '';
+        } else if (ch === '\n' || ch === '\r') {
+            if (ch === '\r' && src[i + 1] === '\n') i++;
+            pushRow();
+            line++;
+            rowLine = line;
+        } else {
+            field += ch;
+        }
+    }
+    if (field !== '' || row.length > 0) pushRow();
+    return rows.filter(r => r.cells.some(c => c.trim() !== ''));
+};
+
+// Kiểm tra nội dung tệp CSV trạm đo; existingByCode là bản đồ mã trạm -> trạm đã có
+const parseStationCsv = (text, existingByCode) => {
+    const rows = parseCsv(text);
+    if (rows.length === 0) return { fatal: 'Tệp không có dữ liệu.', items: [], errors: [] };
+
+    const header = rows[0].cells.map(c => c.trim().toLowerCase());
+    const missing = ['station_code', 'name', 'lat', 'lon'].filter(c => !header.includes(c));
+    if (missing.length > 0) {
+        return { fatal: `Tệp thiếu các cột bắt buộc: ${missing.join(', ')}.`, items: [], errors: [] };
+    }
+    const idx = (name) => header.indexOf(name);
+
+    const items = [];
+    const errors = [];
+    const seen = new Set();
+
+    rows.slice(1).forEach(({ line, cells }) => {
+        const get = (name) => {
+            const i = idx(name);
+            return i >= 0 && cells[i] !== undefined ? cells[i].trim() : '';
+        };
+        const problems = [];
+
+        const code = get('station_code');
+        if (!code) problems.push('thiếu mã trạm');
+        else if (seen.has(code.toLowerCase())) problems.push(`mã trạm ${code} bị trùng trong tệp`);
+        const name = get('name');
+        if (!name) problems.push('thiếu tên trạm');
+
+        const typeRaw = get('station_type');
+        const stationType = typeRaw ? STATION_TYPE_LOOKUP[typeRaw.toLowerCase()] : 'SURFACE';
+        if (!stationType) problems.push(`loại trạm "${typeRaw}" không hợp lệ`);
+
+        const lat = Number(get('lat'));
+        if (get('lat') === '' || Number.isNaN(lat) || lat < -90 || lat > 90) problems.push('vĩ độ không hợp lệ');
+        const lon = Number(get('lon'));
+        if (get('lon') === '' || Number.isNaN(lon) || lon < -180 || lon > 180) problems.push('kinh độ không hợp lệ');
+
+        let elevation = null;
+        if (get('elevation') !== '') {
+            elevation = Number(get('elevation'));
+            if (Number.isNaN(elevation)) problems.push('độ cao không hợp lệ');
+        }
+
+        let isActive = true;
+        const activeRaw = get('is_active').toLowerCase();
+        if (activeRaw !== '') {
+            if (TRUE_VALUES.includes(activeRaw)) isActive = true;
+            else if (FALSE_VALUES.includes(activeRaw)) isActive = false;
+            else problems.push('trạng thái hoạt động không hợp lệ');
+        }
+
+        if (problems.length > 0) {
+            errors.push({ line, message: problems.join('; ') });
+            return;
+        }
+        seen.add(code.toLowerCase());
+        const existing = existingByCode[code.toLowerCase()];
+        items.push({
+            line,
+            existingId: existing ? existing.id : null,
+            payload: {
+                station_code: code,
+                name,
+                station_type: stationType,
+                elevation,
+                lat,
+                lon,
+                is_active: isActive
+            }
+        });
+    });
+
+    return { fatal: null, items, errors };
 };
 
 const IMPORT_TEMPLATE_ROWS = [
@@ -58,6 +218,12 @@ const AdminStationsRoute = () => {
         dataset: '',
         is_active: true
     });
+
+    // Nhập danh sách trạm từ tệp CSV
+    const stationFileInputRef = useRef(null);
+    const [stationImport, setStationImport] = useState(null); // { fileName, items, errors, fatal }
+    const [stationImportLoading, setStationImportLoading] = useState(false);
+    const [stationImportChecking, setStationImportChecking] = useState(false);
 
     // ==========================================
     // 2. Data Lake Overview & Partitions State
@@ -187,6 +353,83 @@ const AdminStationsRoute = () => {
     };
 
     // ==========================================
+    // Station CSV Handlers (tải mẫu, xuất, nhập)
+    // ==========================================
+    const handleDownloadStationTemplate = () => {
+        downloadCsvFile('mau_danh_sach_tram_do.csv', [STATION_CSV_HEADER, ...STATION_CSV_TEMPLATE_ROWS]);
+    };
+
+    const handleExportStations = () => {
+        if (stations.length === 0) {
+            setFeedback({ type: 'danger', message: 'Không có trạm đo nào để xuất.' });
+            return;
+        }
+        const rows = stations.map(s => [
+            s.station_code,
+            s.name,
+            s.station_type || 'SURFACE',
+            s.elevation ?? '',
+            s.lat ?? '',
+            s.lon ?? '',
+            s.is_active ? 1 : 0
+        ]);
+        downloadCsvFile('danh_sach_tram_do.csv', [STATION_CSV_HEADER, ...rows]);
+    };
+
+    const handleStationFileSelected = (e) => {
+        const file = e.target.files[0];
+        e.target.value = ''; // cho phép chọn lại cùng một tệp
+        if (!file) return;
+
+        setStationImportChecking(true);
+        setFeedback(null);
+        // Lấy danh sách trạm mới nhất (không lọc theo ô tìm kiếm) để biết trạm nào đã tồn tại
+        Promise.all([file.text(), getAdminStations()]).then(([text, allStations]) => {
+            const existingByCode = {};
+            allStations.forEach(s => { existingByCode[String(s.station_code).toLowerCase()] = s; });
+            setStationImport({ fileName: file.name, ...parseStationCsv(text, existingByCode) });
+            setStationImportChecking(false);
+        }).catch(err => {
+            setFeedback({ type: 'danger', message: 'Không thể đọc tệp: ' + (err.response?.data?.detail || err.message) });
+            setStationImportChecking(false);
+        });
+    };
+
+    const handleConfirmStationImport = async () => {
+        if (!stationImport || stationImport.items.length === 0) return;
+        setStationImportLoading(true);
+        const defaultDataset = datasets[0]?.id || null;
+        let created = 0;
+        let updated = 0;
+        const failures = [];
+
+        for (const item of stationImport.items) {
+            try {
+                if (item.existingId) {
+                    await updateStation(item.existingId, item.payload);
+                    updated++;
+                } else {
+                    await createStation({ ...item.payload, dataset: defaultDataset });
+                    created++;
+                }
+            } catch (err) {
+                const detail = err.response?.data ? JSON.stringify(err.response.data) : err.message;
+                failures.push(`dòng ${item.line} (${item.payload.station_code}): ${detail}`);
+            }
+        }
+
+        setStationImportLoading(false);
+        setStationImport(null);
+        loadStations();
+        const summary = `Đã thêm mới ${created} trạm, cập nhật ${updated} trạm.`;
+        if (failures.length > 0) {
+            setFeedback({ type: 'danger', message: `${summary} Có ${failures.length} dòng lỗi: ${failures.slice(0, 3).join(' | ')}${failures.length > 3 ? ' ...' : ''}` });
+        } else {
+            setFeedback({ type: 'success', message: summary });
+        }
+    };
+
+    // ==========================================
     // Ingestion Handlers (Data Lake or DB)
     // ==========================================
     const handleDryRun = () => {
@@ -304,26 +547,60 @@ const AdminStationsRoute = () => {
                 </div>
                 <div style={{ display: 'flex', gap: '10px' }}>
                     {activeTab === 'stations' && (
-                        <button
-                            onClick={() => {
-                                setStationForm({
-                                    id: null,
-                                    station_code: '',
-                                    name: '',
-                                    station_type: 'SURFACE',
-                                    elevation: '',
-                                    lat: '',
-                                    lon: '',
-                                    dataset: datasets[0]?.id || '',
-                                    is_active: true
-                                });
-                                setShowModal(true);
-                            }}
-                            className="btn btn-primary"
-                            style={{ display: 'flex', alignItems: 'center', gap: '6px', borderRadius: '6px', fontWeight: 600 }}
-                        >
-                            <i className="fa fa-plus"></i>Thêm trạm quan trắc
-                        </button>
+                        <>
+                            <input
+                                ref={stationFileInputRef}
+                                type="file"
+                                accept=".csv"
+                                style={{ display: 'none' }}
+                                onChange={handleStationFileSelected}
+                            />
+                            <button
+                                onClick={handleDownloadStationTemplate}
+                                className="btn btn-default"
+                                style={{ display: 'flex', alignItems: 'center', gap: '6px', borderRadius: '6px', fontWeight: 600 }}
+                                title="Tải tệp CSV mẫu để điền danh sách trạm"
+                            >
+                                <i className="fa fa-file-text-o"></i>Tải tệp mẫu
+                            </button>
+                            <button
+                                onClick={() => stationFileInputRef.current?.click()}
+                                disabled={stationImportChecking}
+                                className="btn btn-default"
+                                style={{ display: 'flex', alignItems: 'center', gap: '6px', borderRadius: '6px', fontWeight: 600 }}
+                                title="Thêm mới hoặc cập nhật trạm từ tệp CSV"
+                            >
+                                <i className={`fa ${stationImportChecking ? 'fa-spinner fa-spin' : 'fa-upload'}`}></i>Nhập từ tệp
+                            </button>
+                            <button
+                                onClick={handleExportStations}
+                                className="btn btn-success"
+                                style={{ display: 'flex', alignItems: 'center', gap: '6px', borderRadius: '6px', fontWeight: 600 }}
+                                title="Xuất danh sách trạm đang hiển thị ra tệp CSV"
+                            >
+                                <i className="fa fa-download"></i>Xuất tệp
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setStationForm({
+                                        id: null,
+                                        station_code: '',
+                                        name: '',
+                                        station_type: 'SURFACE',
+                                        elevation: '',
+                                        lat: '',
+                                        lon: '',
+                                        dataset: datasets[0]?.id || '',
+                                        is_active: true
+                                    });
+                                    setShowModal(true);
+                                }}
+                                className="btn btn-primary"
+                                style={{ display: 'flex', alignItems: 'center', gap: '6px', borderRadius: '6px', fontWeight: 600 }}
+                            >
+                                <i className="fa fa-plus"></i>Thêm trạm quan trắc
+                            </button>
+                        </>
                     )}
                     {activeTab === 'datalake' && (
                         <>
@@ -1095,6 +1372,102 @@ Theo chu kỳ quan trắc
                                     <i className="fa fa-download" style={{ marginRight: '6px' }}></i> Bắt đầu tải về
                                 </a>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal xác nhận nhập trạm từ tệp */}
+            {stationImport && (
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 100000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ background: '#ffffff', borderRadius: '12px', width: '640px', maxWidth: '90%', maxHeight: '85vh', overflowY: 'auto', padding: '24px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)' }}>
+                        <h3 style={{ marginTop: 0, marginBottom: '6px', fontSize: '18px', fontWeight: 700, color: '#0f172a' }}>
+                            Nhập trạm đo từ tệp
+                        </h3>
+                        <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '16px' }}>{stationImport.fileName}</div>
+
+                        {stationImport.fatal ? (
+                            <div className="alert alert-danger" style={{ borderRadius: '8px' }}>{stationImport.fatal}</div>
+                        ) : (
+                            <>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '16px' }}>
+                                    <div style={{ padding: '12px', background: '#f0fdf4', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
+                                        <div style={{ fontSize: '11px', color: '#64748b' }}>Thêm mới</div>
+                                        <div style={{ fontSize: '20px', fontWeight: 700, color: '#10b981' }}>
+                                            {stationImport.items.filter(i => !i.existingId).length}
+                                        </div>
+                                    </div>
+                                    <div style={{ padding: '12px', background: '#f0f9ff', borderRadius: '8px', border: '1px solid #bae6fd' }}>
+                                        <div style={{ fontSize: '11px', color: '#64748b' }}>Cập nhật trạm đã có</div>
+                                        <div style={{ fontSize: '20px', fontWeight: 700, color: '#0284c7' }}>
+                                            {stationImport.items.filter(i => i.existingId).length}
+                                        </div>
+                                    </div>
+                                    <div style={{ padding: '12px', background: '#fef2f2', borderRadius: '8px', border: '1px solid #fecaca' }}>
+                                        <div style={{ fontSize: '11px', color: '#64748b' }}>Dòng lỗi, sẽ bỏ qua</div>
+                                        <div style={{ fontSize: '20px', fontWeight: 700, color: '#ef4444' }}>
+                                            {stationImport.errors.length}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {stationImport.errors.length > 0 && (
+                                    <div style={{ marginBottom: '16px', padding: '12px', background: '#fef2f2', borderRadius: '8px', border: '1px solid #fecaca', maxHeight: '160px', overflowY: 'auto', fontSize: '12px', color: '#991b1b' }}>
+                                        {stationImport.errors.map((er, i) => (
+                                            <div key={i}>Dòng {er.line}: {er.message}</div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {stationImport.items.length > 0 && (
+                                    <div className="table-responsive" style={{ maxHeight: '220px', overflowY: 'auto', marginBottom: '16px' }}>
+                                        <table className="table table-bordered table-condensed" style={{ fontSize: '12px', margin: 0 }}>
+                                            <thead>
+                                                <tr style={{ background: '#f1f5f9' }}>
+                                                    <th>Dòng</th>
+                                                    <th>Mã trạm</th>
+                                                    <th>Tên trạm</th>
+                                                    <th>Loại trạm</th>
+                                                    <th>Xử lý</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {stationImport.items.map(item => (
+                                                    <tr key={item.line}>
+                                                        <td>{item.line}</td>
+                                                        <td style={{ fontWeight: 600 }}>{item.payload.station_code}</td>
+                                                        <td>{item.payload.name}</td>
+                                                        <td>{STATION_TYPE_LABELS[item.payload.station_type]}</td>
+                                                        <td>{item.existingId ? 'Cập nhật' : 'Thêm mới'}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                            </>
+                        )}
+
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                            <button
+                                type="button"
+                                onClick={() => setStationImport(null)}
+                                disabled={stationImportLoading}
+                                className="btn btn-default"
+                            >
+                                Đóng
+                            </button>
+                            {!stationImport.fatal && (
+                                <button
+                                    type="button"
+                                    onClick={handleConfirmStationImport}
+                                    disabled={stationImportLoading || stationImport.items.length === 0}
+                                    className="btn btn-primary"
+                                >
+                                    <i className={`fa ${stationImportLoading ? 'fa-spinner fa-spin' : 'fa-check'}`} style={{ marginRight: '6px' }}></i>
+                                    {stationImportLoading ? 'Đang nhập...' : `Nhập ${stationImport.items.length} trạm`}
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>
