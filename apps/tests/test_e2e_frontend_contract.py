@@ -820,3 +820,125 @@ class FrontendE2EContractTestCase(TestCase):
         res_api_alias = self.client.get("/api/datasets/")
         self.assertEqual(res_api_alias.status_code, 200)
         self.assertIn("results", res_api_alias.json())
+
+    def test_21_turbines_interpolation_grid_contract(self):
+        """
+        [GET] /wind/api/v1/turbines/interpolation/grid/
+        Verifies IDW and Kriging grid interpolation for predicted_power_mw, wind_speed_100m, depth_m.
+        """
+        # Add 2 more turbines so Kriging variogram has sufficient spread
+        WindTurbine.objects.create(
+            farm=self.farm,
+            point_id=3,
+            geom=Point(107.80, 20.20, srid=4326),
+            wind_speed_100m=9.9,
+            wind_direction=70.0,
+            sea_depth=35.0,
+            predicted_power_mw=5.0,
+            status="OPERATIONAL",
+        )
+        WindTurbine.objects.create(
+            farm=self.farm,
+            point_id=4,
+            geom=Point(107.85, 20.12, srid=4326),
+            wind_speed_100m=8.8,
+            wind_direction=55.0,
+            sea_depth=55.0,
+            predicted_power_mw=4.1,
+            status="OPERATIONAL",
+        )
+
+        for method in ("idw", "kriging"):
+            for metric in ("predicted_power_mw", "wind_speed_100m", "depth_m"):
+                res = self.client.get(
+                    "/wind/api/v1/turbines/interpolation/grid/",
+                    {"method": method, "metric": metric, "width": 10, "height": 10},
+                )
+                self.assertEqual(res.status_code, 200, f"Failed for {method}/{metric}: {res.content}")
+                data = res.json()
+                self.assertEqual(data["method"], method)
+                self.assertEqual(data["metric"], metric)
+                self.assertEqual(data["width"], 10)
+                self.assertEqual(data["height"], 10)
+                self.assertEqual(len(data["bbox"]), 4)
+                self.assertEqual(len(data["values"]), 100)
+                self.assertEqual(len(data["alphas"]), 100)
+                self.assertGreaterEqual(data["point_count"], 4)
+
+    def test_22_turbines_interpolation_point_contract(self):
+        """
+        [GET] /wind/api/v1/turbines/interpolation/point/
+        Verifies point interpolation inside coverage (available=True) and far away (available=False).
+        """
+        res_near = self.client.get(
+            "/wind/api/v1/turbines/interpolation/point/",
+            {"lon": 107.73, "lat": 20.14, "method": "idw"},
+        )
+        self.assertEqual(res_near.status_code, 200)
+        near_data = res_near.json()
+        self.assertTrue(near_data["available"])
+        self.assertIn("closest_point", near_data)
+        self.assertIn("predicted_power_mw", near_data)
+        self.assertIn("wind_speed_100m", near_data)
+        self.assertIn("depth_m", near_data)
+
+        res_far = self.client.get(
+            "/wind/api/v1/turbines/interpolation/point/",
+            {"lon": 120.0, "lat": 1.0, "method": "idw"},
+        )
+        self.assertEqual(res_far.status_code, 200)
+        self.assertFalse(res_far.json()["available"])
+
+    def test_23_turbines_export_csv_and_geojson_contract(self):
+        """
+        [GET] /wind/api/v1/turbines/export/?output=csv|geojson
+        Verifies UTF-8 BOM CSV export and GeoJSON FeatureCollection export.
+        """
+        csv_res = self.client.get("/wind/api/v1/turbines/export/", {"output": "csv"})
+        self.assertEqual(csv_res.status_code, 200)
+        self.assertIn("text/csv", csv_res["Content-Type"])
+        body = csv_res.content.decode("utf-8-sig")
+        lines = [line for line in body.splitlines() if line.strip()]
+        self.assertGreaterEqual(len(lines), 3)
+        self.assertEqual(len(lines[0].split(",")), 14)
+
+        geo_res = self.client.get("/wind/api/v1/turbines/export/", {"output": "geojson"})
+        self.assertEqual(geo_res.status_code, 200)
+        geo_data = geo_res.json()
+        self.assertEqual(geo_data["type"], "FeatureCollection")
+        self.assertGreaterEqual(len(geo_data["features"]), 2)
+
+    def test_24_dataset_hierarchy_steps_and_point_metadata_contract(self):
+        """
+        [GET] year_steps, month_steps, day_steps, point_metadata & stations/spatial_query
+        """
+        for action, key in (
+            ("year_steps", "year_steps"),
+            ("month_steps", "month_steps"),
+            ("day_steps", "day_steps"),
+        ):
+            res = self.client.get(f"/wind/api/v1/datasets/{self.grid_dataset.id}/{action}/")
+            self.assertEqual(res.status_code, 200)
+            self.assertIn(key, res.json())
+            self.assertGreaterEqual(len(res.json()[key]), 1)
+
+        iso_time = self.granule_time.strftime("%Y-%m-%dT%H:%M:%SZ")
+        pm_res = self.client.get(
+            "/wind/api/v1/raster-granules/point_metadata/",
+            {
+                "lat": 20.1,
+                "lon": 107.7,
+                "time": iso_time,
+                "dataset_code": self.grid_dataset.code,
+            },
+        )
+        self.assertEqual(pm_res.status_code, 200)
+
+        sq_res = self.client.get(
+            "/wind/api/v1/stations/spatial_query/",
+            {"lat": 20.13, "lon": 107.72, "radius_km": 20},
+        )
+        self.assertEqual(sq_res.status_code, 200)
+        sq_data = sq_res.json()
+        results = sq_data.get("results", sq_data)
+        self.assertTrue(any(st["station_code"] == "48839" for st in results))

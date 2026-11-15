@@ -642,3 +642,116 @@ class LakeStationCodeTestCase(LakeTestMixin, TestCase):
         self.assertEqual(rows.count(), 2)
         self.assertEqual(rows[0:1][0]["station"], 7)
         self.assertEqual(lake.get_station_aggregates(["48_10"])["48_10"]["cnt"], 2)
+
+
+class StationCsvApiTestCase(TestCase):
+    base = "/wind/api/v1/stations/"
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+
+        self.admin_user = get_user_model().objects.create_superuser(
+            username="station_csv_admin", email="station_csv@example.com", password="pass12345"
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.admin_user)
+        self.existing = Station.objects.create(
+            station_code="OLD_01", name="Tram cu", geom=Point(100.0, 10.0), station_type="SURFACE", is_active=True
+        )
+
+    def _upload(self, content, dry_run=False):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        upload = SimpleUploadedFile("tram.csv", content.encode("utf-8"), content_type="text/csv")
+        return self.client.post(
+            self.base + "import/", {"file": upload, "dry_run": str(dry_run).lower()}, format="multipart"
+        )
+
+    def test_list_pagination_returns_total_count(self):
+        for i in range(25):
+            Station.objects.create(station_code=f"S{i}", name=f"Tram {i}", geom=Point(100.0, 10.0))
+        res = self.client.get(self.base + "?all=true&page=2&page_size=10")
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["count"], 26)
+        self.assertEqual(len(res.json()["results"]), 10)
+
+    def test_download_template(self):
+        res = self.client.get(self.base + "download-template/")
+        self.assertEqual(res.status_code, 200)
+        self.assertIn("attachment", res["Content-Disposition"])
+        text = res.content.decode("utf-8-sig")
+        self.assertTrue(text.startswith("station_code,name,station_type,elevation,lat,lon,is_active"))
+
+    def test_export_includes_all_stations_and_respects_search(self):
+        for i in range(25):
+            Station.objects.create(station_code=f"S{i}", name=f"Tram {i}", geom=Point(100.0, 10.0))
+        res = self.client.get(self.base + "export/?all=true")
+        rows = list(csv.reader(res.content.decode("utf-8-sig").splitlines()))
+        self.assertEqual(len(rows), 1 + 26)  # tiêu đề + toàn bộ trạm, không bị cắt theo trang
+
+        res = self.client.get(self.base + "export/?all=true&search=OLD")
+        rows = list(csv.reader(res.content.decode("utf-8-sig").splitlines()))
+        self.assertEqual([r[0] for r in rows[1:]], ["OLD_01"])
+
+    def test_export_then_import_round_trip(self):
+        exported = self.client.get(self.base + "export/?all=true").content.decode("utf-8-sig")
+        res = self._upload(exported)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["updated"], 1)
+        self.assertEqual(res.json()["created"], 0)
+        self.assertEqual(res.json()["errors"], [])
+
+    def test_import_creates_and_updates(self):
+        content = (
+            "station_code,name,station_type,elevation,lat,lon,is_active\n"
+            'OLD_01,"Tram, da doi ten",Cột khí tượng,12.5,11,101,0\n'
+            "NEW 02,Tram moi,BUOY,,12,102,1\n"
+        )
+        res = self._upload(content)
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertEqual((data["created"], data["updated"]), (1, 1))
+
+        self.existing.refresh_from_db()
+        self.assertEqual(self.existing.name, "Tram, da doi ten")
+        self.assertEqual(self.existing.station_type, "MET_MAST")
+        self.assertFalse(self.existing.is_active)
+        self.assertEqual(self.existing.geom.y, 11.0)
+        created = Station.objects.get(station_code="NEW_02")
+        self.assertEqual(created.station_type, "BUOY")
+        self.assertIsNone(created.elevation)
+
+    def test_import_dry_run_does_not_write(self):
+        content = "station_code,name,lat,lon\nNEW_03,Tram moi,12,102\n"
+        res = self._upload(content, dry_run=True)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["created"], 1)
+        self.assertFalse(Station.objects.filter(station_code="NEW_03").exists())
+
+    def test_import_skips_invalid_rows_and_reports_them(self):
+        content = (
+            "station_code,name,lat,lon\n"
+            "OK_1,Tram tot,10,100\n"
+            "OK_1,Trung ma,10,100\n"
+            "BAD_LAT,Sai vi do,95,100\n"
+            ",Thieu ma,10,100\n"
+        )
+        res = self._upload(content)
+        data = res.json()
+        self.assertEqual(data["created"], 1)
+        self.assertEqual([e["line"] for e in data["errors"]], [3, 4, 5])
+        self.assertTrue(Station.objects.filter(station_code="OK_1").exists())
+        self.assertFalse(Station.objects.filter(station_code="BAD_LAT").exists())
+
+    def test_import_rejects_missing_columns_and_missing_file(self):
+        res = self._upload("station_code,name\nA,B\n")
+        self.assertEqual(res.status_code, 400)
+        self.assertIn("lat", res.json()["error"])
+
+        res = self.client.post(self.base + "import/", {}, format="multipart")
+        self.assertEqual(res.status_code, 400)
+
+    def test_import_requires_admin(self):
+        self.client.force_authenticate(user=None)
+        res = self._upload("station_code,name,lat,lon\nA,B,1,2\n")
+        self.assertIn(res.status_code, (401, 403))
