@@ -1,4 +1,5 @@
 from django.apps import apps
+from django.contrib.auth.models import Group
 from django.db.models.functions import TruncDay, TruncMonth, TruncYear
 from django_filters import rest_framework as filters
 from rest_framework import permissions, viewsets
@@ -25,6 +26,7 @@ from wind_core.serializers import (
     DownloadRequestSerializer,
     IngestionLogSerializer,
     SystemMetricSerializer,
+    UserGroupSerializer,
     UserQueryHistorySerializer,
 )
 from wind_core.utils import IsAdminUserOrReadOnly, StandardResultsSetPagination
@@ -158,10 +160,19 @@ class DatasetVariableViewSet(viewsets.ModelViewSet):
 class DatasetAccessPolicyViewSet(viewsets.ModelViewSet):
     queryset = DatasetAccessPolicy.objects.all().order_by("id")
     serializer_class = DatasetAccessPolicySerializer
-    permission_classes = [IsAdminUserOrReadOnly]
+    permission_classes = [permissions.IsAdminUser]
     pagination_class = StandardResultsSetPagination
     filter_backends = [filters.DjangoFilterBackend]
     filterset_fields = ["dataset", "group", "can_view", "can_query", "can_download"]
+
+
+class UserGroupViewSet(viewsets.ReadOnlyModelViewSet):
+    """Danh sách nhóm người dùng để chọn trong form phân quyền bộ dữ liệu."""
+
+    queryset = Group.objects.all().order_by("name")
+    serializer_class = UserGroupSerializer
+    permission_classes = [permissions.IsAdminUser]
+    pagination_class = None
 
 
 class IngestionLogViewSet(viewsets.ReadOnlyModelViewSet):

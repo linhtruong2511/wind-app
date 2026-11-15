@@ -22,6 +22,7 @@ from wind_core.views import (
     DatasetVariableViewSet,
     DatasetViewSet,
     IngestionLogViewSet,
+    UserGroupViewSet,
 )
 from wind_energy.views import (
     AnalysisJobViewSet,
@@ -45,6 +46,7 @@ router.register(r"datasets", DatasetViewSet, basename="dataset")
 router.register(r"dataset-variables", DatasetVariableViewSet, basename="dataset-variable")
 router.register(r"dataset-access-policies", DatasetAccessPolicyViewSet, basename="dataset-access-policy")
 router.register(r"ingestion-logs", IngestionLogViewSet, basename="ingestion-log")
+router.register(r"user-groups", UserGroupViewSet, basename="user-group")
 
 # wind_stations micro-app
 router.register(r"stations", StationViewSet, basename="station")
