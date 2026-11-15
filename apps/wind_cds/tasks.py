@@ -15,7 +15,7 @@ from wind_raster.services import ingest_netcdf
 logger = logging.getLogger(__name__)
 
 
-@shared_task(bind=True, name="wind_cds.tasks.run_cds_download_job", queue="default")
+@shared_task(bind=True, name="wind_cds.tasks.run_cds_download_job", queue="wind")
 def run_cds_download_job(self, job_id: int):
     """Tải NetCDF từ CDS rồi nạp các granule vào hệ thống."""
     job = CDSDownloadJob.objects.filter(id=job_id).select_related("credential", "dataset").first()
@@ -100,7 +100,7 @@ def run_cds_download_job(self, job_id: int):
                 pass
 
 
-@shared_task(bind=True, name="wind_cds.tasks.download_cds_granule", queue="default")
+@shared_task(bind=True, name="wind_cds.tasks.download_cds_granule", queue="wind")
 def download_cds_granule(self, job_id: int):
     """Alias cho run_cds_download_job để hỗ trợ interface download_cds_granule task."""
     return run_cds_download_job(job_id)

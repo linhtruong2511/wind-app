@@ -196,6 +196,10 @@ CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = TIME_ZONE
+# Queue/exchange riêng để không đụng queue "default" của GeoNode (dùng chung Redis).
+CELERY_TASK_DEFAULT_QUEUE = "wind"
+CELERY_TASK_DEFAULT_EXCHANGE = "wind"
+CELERY_TASK_DEFAULT_ROUTING_KEY = "wind"
 
 
 # Windows PostGIS GDAL/GEOS Configuration
