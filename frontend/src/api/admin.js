@@ -108,6 +108,62 @@ export const getAdminStations = (params = {}) => {
         .then(res => res.data.results || res.data || []);
 };
 
+// Danh sách trạm có phân trang: trả về { count, results, next, previous }
+export const getAdminStationsPage = (params = {}) => {
+    return axios.get(`${BASE_URL}/stations/`, { ...authConfig(), params: { all: 'true', ...params } })
+        .then(res => {
+            const data = res.data;
+            return Array.isArray(data) ? { count: data.length, results: data } : data;
+        });
+};
+
+// Lưu tệp nhận từ API (dạng blob) về máy; lấy tên tệp từ tiêu đề phản hồi nếu có
+const saveBlobResponse = (res, fallbackName) => {
+    const disposition = res.headers['content-disposition'] || '';
+    const match = disposition.match(/filename="?([^";]+)"?/i);
+    const url = URL.createObjectURL(res.data);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = match ? match[1] : fallbackName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+};
+
+// Khi lỗi, phản hồi dạng blob cần được đọc lại thành JSON để lấy thông báo
+const readBlobError = (err) => {
+    const blob = err.response?.data;
+    if (blob instanceof Blob) {
+        return blob.text().then(text => {
+            try { err.response.data = JSON.parse(text); } catch (e) { /* giữ nguyên */ }
+            throw err;
+        });
+    }
+    throw err;
+};
+
+export const downloadStationTemplate = () => {
+    return axios.get(`${BASE_URL}/stations/download-template/`, { ...authConfig(), responseType: 'blob' })
+        .then(res => saveBlobResponse(res, 'mau_danh_sach_tram_do.csv'))
+        .catch(readBlobError);
+};
+
+export const exportStations = (params = {}) => {
+    return axios.get(`${BASE_URL}/stations/export/`, { ...authConfig(), params: { all: 'true', ...params }, responseType: 'blob' })
+        .then(res => saveBlobResponse(res, 'danh_sach_tram_do.csv'))
+        .catch(readBlobError);
+};
+
+// dryRun = true: chỉ kiểm tra tệp, chưa ghi dữ liệu
+export const importStations = (file, dryRun = false) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('dry_run', dryRun ? 'true' : 'false');
+    return axios.post(`${BASE_URL}/stations/import/`, formData, authConfig({ 'Content-Type': 'multipart/form-data' }))
+        .then(res => res.data);
+};
+
 export const createStation = (data) => {
     return axios.post(`${BASE_URL}/stations/`, data, authConfig())
         .then(res => res.data);

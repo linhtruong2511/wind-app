@@ -9,6 +9,7 @@ from django_filters import rest_framework as filters
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_gis.filters import InBBoxFilter
@@ -20,6 +21,7 @@ from .serializers import (
     StationSerializer,
 )
 from .services import observation_lake_service as lake
+from .services import station_csv_service as station_csv
 from .services.province_service import get_province_geometry, get_provinces_wfs_data
 from .services.station_service import get_station_summary_data
 from .services.duckdb_storage_service import (
@@ -40,6 +42,12 @@ def _time_range(params, start_key="start_date", end_key="end_date"):
         return lake.parse_time_filter(params.get(start_key)), lake.parse_time_filter(params.get(end_key))
     except ValueError as exc:
         raise ValidationError({"detail": str(exc)})
+
+
+def _csv_response(content, filename):
+    response = HttpResponse(content, content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
 
 
 class StationViewSet(viewsets.ModelViewSet):
@@ -85,6 +93,46 @@ class StationViewSet(viewsets.ModelViewSet):
                 pass
 
         return qs
+
+    @action(detail=False, methods=["get"], url_path="download-template")
+    def download_template(self, request):
+        """
+        [GET] /wind/api/v1/stations/download-template/
+        Tải tệp CSV mẫu để điền danh sách trạm.
+        """
+        return _csv_response(station_csv.build_template_csv(), "mau_danh_sach_tram_do.csv")
+
+    @action(detail=False, methods=["get"], url_path="export")
+    def export(self, request):
+        """
+        [GET] /wind/api/v1/stations/export/
+        Xuất toàn bộ trạm (không phân trang) ra tệp CSV, áp dụng cùng bộ lọc với danh sách:
+        all, search, station_type, province_id.
+        """
+        qs = self.filter_queryset(self.get_queryset())
+        return _csv_response(station_csv.build_export_csv(qs), "danh_sach_tram_do.csv")
+
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="import",
+        parser_classes=[MultiPartParser, FormParser],
+    )
+    def import_stations(self, request):
+        """
+        [POST] /wind/api/v1/stations/import/  (multipart: file, dry_run)
+        Thêm mới hoặc cập nhật trạm theo mã trạm từ tệp CSV.
+        dry_run=true chỉ kiểm tra tệp và trả kết quả dự kiến, không ghi dữ liệu.
+        """
+        uploaded_file = request.FILES.get("file")
+        if not uploaded_file:
+            return Response({"error": "Vui lòng chọn tệp CSV."}, status=status.HTTP_400_BAD_REQUEST)
+        dry_run = str(request.data.get("dry_run", "false")).lower() in ("true", "1")
+        try:
+            result = station_csv.import_stations_from_csv(uploaded_file, dry_run=dry_run)
+        except station_csv.StationCsvError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(result)
 
     @action(detail=False, methods=["get"])
     def map(self, request):
